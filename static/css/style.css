@@ -74,7 +74,7 @@ button, .center {
 
 .overflow_scroll {
     overflow: scroll;
-    overflow-x: hidden;
+    overflow-x: initial;
 }
 
 input[type = text] {
@@ -92,17 +92,32 @@ input[type = text] {
 /* Hangman area */
 .hangman_area {
     height: 400px;
-    width: 500px;
-    margin: 20px;
+    width: 515px;
+    margin-left: 20px;
+    margin-top: 20px;
     float: left;
 }
 
 /* Chat area */
 .chat_area {
     height: 400px; 
-    width: 220px;
-    margin: 20px;
+    width: 240px;
+    margin-top: 20px;
+    margin-right: 20px;
     float: right;
+}
+
+#message_input, #send_button {
+    height: 40px;
+    width: 90%;
+    border-radius: 10px;
+    margin-bottom: 5px;
+}
+
+.chat_messages {
+    height: 300px;
+    width: 100%;
+    border-radius: 0px;
 }
 
 /* Flashes */

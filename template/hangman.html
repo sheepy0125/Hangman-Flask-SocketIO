@@ -14,8 +14,15 @@
         </div>
 
         <!-- Chat area (right) -->
-        <div class = "sub_content chat_area overflow_scroll">
-        
+        <div class = "sub_content chat_area">
+            <!-- Send message -->
+            <div class = "send_chat_message">
+                <label class = "center center_text">Message<input type = "text" id = "message_input" pattern = "[a-zA-Z0-9]+"></label>
+                <button type = "button" id = "send_button" class = "button">Send message</button>
+            </div>
+
+            <!-- Messages -->
+            <div class = "overflow_scroll chat_messages" id = "chat_area"><ul id = "chat_ul"></ul></div>
         </div>
     </div>
     <!-- Socket IO JavaScript library -->
@@ -25,10 +32,28 @@
     <script>
         // Setup
         const socket = io("http://127.0.0.1:5000");
+        const username = "{{ username }}";
+
+        // Chat HTML        
+        const chat_html = document.getElementById("chat_ul");
+        const send_chat_html = document.getElementById("send_button");
+        const chat_text_input_html = document.getElementById("message_input");
+        const chat_area_html = document.getElementById("chat_area");
+
+        send_chat_html.addEventListener("click", send_chat_message);
 
         // Connect
         socket.on("connect", function() { socket.emit("user_connection", {"username": username} ); });
 
+        // Chat message sent from server
+        socket.on("message", function(message) { 
+            chat_html.innerHTML += `<p>${message}</p>`;
+            // Auto scroll chat area
+            chat_area_html.scrollTop = chat_area_html.scrollHeight;
+        });
+
+        // Send chat message
+        function send_chat_message() { socket.emit("send_message", {"message": chat_text_input_html.value}); }
     </script>
 </div>
 {% endblock %}

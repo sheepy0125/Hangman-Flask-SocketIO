@@ -20,7 +20,7 @@ with open ("config.json") as config_file:
 
 main_app = flask.Flask(__name__, template_folder = "template")
 main_app.config["SECRET_KEY"] = SECRET_KEY
-socket_io = flask_socketio.SocketIO(main_app)
+socket_io = flask_socketio.SocketIO(main_app, ping_timeout = 10, ping_interval = 10)
 users_connected = Counter(initial_value = 0)
 messages_sent = Counter(initial_value = 0)
 guesses_left = Counter(initial_value = GUESSES)
@@ -35,7 +35,12 @@ def log(text_to_log:str, file:str = LOG_LOCATION):
 
 # Get current time (shifted to timezone)
 def get_current_time():
-    return (datetime.datetime.utcnow() + datetime.timedelta(hours = UTC_TIMEZONE_OFFSET)).strftime("%m/%d/%Y")
+    return (datetime.datetime.utcnow() + datetime.timedelta(hours = UTC_TIMEZONE_OFFSET)).strftime("%m/%d/%Y at %H:%M:%S")
+
+# Escape HTML scripting
+def escape_html(text:str):
+    text = text.replace(">", "&gt;")
+    return text.replace("<", "&lt;")
 
 # Hangman functions ===============================================================================
 
@@ -67,9 +72,10 @@ def user_disconnection_handler():
 @socket_io.on("send_message")
 def send_message_handler(data:dict):
     messages_sent.change(by = 1)
-    send_message(message = f"[#{str(messages_sent.get()).zfill(4)}] {user_database[flask.request.sid]}: {data['message']}")
+    message = escape_html(text = data["message"])
+    send_message(message = f"[#{str(messages_sent.get()).zfill(4)}] {user_database[flask.request.sid]}: {message}")
 
-    log(text_to_log = f"{flask.request.sid}: {user_database[flask.request.sid]} sent message with data: \"{data}\" | Database: {user_database} | {get_current_time()}")
+    log(text_to_log = f"{flask.request.sid}: {user_database[flask.request.sid]} sent message with data: \"{data}\" | {get_current_time()}")
 
 # Message handler
 @socket_io.on("message")
