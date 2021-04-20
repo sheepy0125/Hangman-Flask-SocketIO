@@ -1,4 +1,4 @@
-# Import
+## Import
 import flask
 import flask_socketio
 import datetime
@@ -9,6 +9,10 @@ class Counter:
     def __init__(self, initial_value:int = 0): self.count = initial_value
     def change(self, by:int = 1): self.count += by
     def get(self): return self.count
+
+# Global variable class
+class GlobalVariable:
+    def __init__(self, initial_value = None): self.var = initial_value
 
 # Setup
 with open ("config.json") as config_file:
@@ -24,6 +28,8 @@ socket_io = flask_socketio.SocketIO(main_app, ping_timeout = 10, ping_interval =
 users_connected = Counter(initial_value = 0)
 messages_sent = Counter(initial_value = 0)
 guesses_left = Counter(initial_value = GUESSES)
+host_id_global = GlobalVariable()
+player_id_global = GlobalVariable()
 user_database = {}
 
 # Misc. functions =================================================================================
@@ -47,6 +53,25 @@ def escape_html(text:str):
 # Send message
 def send_message(message): flask_socketio.send(message, broadcast = True)
 
+# Start game
+def start_game(host_id:str, player_id:str):
+    # Put the host and player id into a namespace variable
+    host_id_global.var = host_id
+    player_id_global.var = player_id
+
+    log(text_to_log = f"Starting! | Database: {user_database} | {get_current_time()}")
+    flask_socketio.emit("recieve_role", {"role": "word_person"}, room = host_id)
+    flask_socketio.emit("recieve_role", {"role": "guess_person"}, room = player_id)
+
+    send_message(f"Game is starting! The guesser is {user_database[player_id]} and the other person is {user_database[host_id]}")
+
+# Word for guesser
+@socket_io.on("word_for_guesser")
+def word_for_guesser(data:dict):
+    log(text_to_log = f"Sending word to guesser (id {player_id_global.var}) | Data: {data} | Database: {user_database} | {get_current_time()}")
+    flask_socketio.emit("get_word", data, room = player_id_global.var)
+
+
 # User connection handler
 @socket_io.on("user_connection")
 def user_connect_handler(data:dict):
@@ -56,6 +81,10 @@ def user_connect_handler(data:dict):
     user_database[flask.request.sid] = data["username"]
 
     log(text_to_log = f"{flask.request.sid}: {data['username']} joined | Database: {user_database} | {get_current_time()}")
+
+    # If there are more than two people, get the host.
+    all_user_ids = list(user_database.keys())
+    if len(all_user_ids) >= 2: start_game(host_id = all_user_ids[0], player_id = all_user_ids[1])
 
 # User disconnection handler
 @socket_io.on("disconnect")

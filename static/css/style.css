@@ -89,13 +89,47 @@ input[type = text] {
     display: inline;
 }
 
-/* Hangman area */
+/* Hangman area
+Also, I didn't know that CSS code could
+be this bad. But, here I am. */
 .hangman_area {
     height: 400px;
     width: 515px;
     margin-left: 20px;
     margin-top: 20px;
     float: left;
+}
+
+.hangman_status {
+    height: 40px;
+}
+
+.vertical_line_hangman_status {
+    border-left: 2px solid black;   
+    height: 49px;
+    float: right;
+    transform: translateX(257.5px);
+    position: absolute;
+}
+
+.horizontal_line_hangman_status {
+    border: 1px solid black;
+    transform: translateY(40px);
+    width: 513.5px;
+    position: absolute;
+}
+
+.word_status {
+    float: left;
+    text-align: center;
+    transform: translateX(50%);
+}
+
+.guess_status {
+    float: right;
+    text-align: center;
+    display: block;
+    transform: translateX(-50%);
 }
 
 /* Chat area */

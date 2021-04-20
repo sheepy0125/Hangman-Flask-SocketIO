@@ -9,15 +9,27 @@
 <div class = "content" style = "height: 450px;">
     <div class = "parent_hangman_chat">
         <!-- Hangman area (left) -->
-        <div class = "sub_content hangman_area">
-            
+        <div class = "sub_content hangman_area" id = "play_area">
+            <!-- Status -->
+            <div class = "hangman_status">
+                <hr class = "horizontal_line_hangman_status">
+                <div class = "vertical_line_hangman_status"></div>
+                <!-- Word status -->
+                <div class = "word_status">
+                    <h3>Word: "<span id = "word_status_censored">h-llo</span>"</h3> 
+                </div>
+                <!-- Guesses left -->
+                <div class = "guess_status">
+                    <h3>Guesses left: <span id = "guesses_left_text"></span></h3>
+                </div>
+            </div>
         </div>
 
         <!-- Chat area (right) -->
         <div class = "sub_content chat_area">
             <!-- Send message -->
             <div class = "send_chat_message">
-                <label class = "center center_text">Message<input type = "text" id = "message_input" pattern = "[a-zA-Z0-9]+"></label>
+                <label class = "center center_text">Message<input type = "text" id = "message_input"></label>
                 <button type = "button" id = "send_button" class = "button">Send message</button>
             </div>
 
@@ -25,7 +37,7 @@
             <div class = "overflow_scroll chat_messages" id = "chat_area"><ul id = "chat_ul"></ul></div>
         </div>
     </div>
-    <!-- Socket IO JavaScript library -->
+    <!-- Socket IO JavaScript library --> 
     <script type="text/javascript" src="https://cdn.socket.io/3.1.3/socket.io.min.js"></script>
 
     <!-- Main JavaScript -->
@@ -34,16 +46,17 @@
         const socket = io("http://127.0.0.1:5000");
         const username = "{{ username }}";
 
-        // Chat HTML        
+        // Connect
+        socket.on("connect", function() { socket.emit("user_connection", {"username": username} ); });
+
+        // Chat ===================================================================================
+
         const chat_html = document.getElementById("chat_ul");
         const send_chat_html = document.getElementById("send_button");
         const chat_text_input_html = document.getElementById("message_input");
         const chat_area_html = document.getElementById("chat_area");
 
         send_chat_html.addEventListener("click", send_chat_message);
-
-        // Connect
-        socket.on("connect", function() { socket.emit("user_connection", {"username": username} ); });
 
         // Chat message sent from server
         socket.on("message", function(message) { 
@@ -54,6 +67,44 @@
 
         // Send chat message
         function send_chat_message() { socket.emit("send_message", {"message": chat_text_input_html.value}); }
+
+        // Hangman ================================================================================
+
+        const play_area = document.getElementById("play_area");
+
+        // Send word to guesser
+        function send_word_to_guesser() {
+            // Get the word
+            word = document.getElementById("word_input").value;
+            socket.emit("word_for_guesser", {"length": word.length, "word": word})
+        }
+
+        // Recieve role (game started)
+        socket.on("recieve_role", function(data) {
+            // Get role
+            role = data["role"];
+            // Word person
+            if (role == "word_person") {
+                // Add word input
+                play_area.innerHTML = `
+                <p>Enter a word for the other player to guess</p>
+                <input type = "text" id = "word_input">
+                <button type = "button" id = "word_submit">Submit word</button>
+                <hr>
+                `;
+
+                submit_word_button = document.getElementById("word_submit");
+
+                submit_word_button.addEventListener("click", send_word_to_guesser)
+            }
+            // Guess person
+            else if (role == "guess_person") {
+                socket.on("get_word", function(data) {
+                    play_area.innerHTML = `<p>${data}</p>`
+                });
+            }
+        });
+
     </script>
 </div>
 {% endblock %}
