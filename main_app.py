@@ -37,13 +37,16 @@ def log(text_to_log:str, file:str = LOG_LOCATION):
 def get_current_time():
     return (datetime.datetime.utcnow() + datetime.timedelta(hours = UTC_TIMEZONE_OFFSET)).strftime("%m/%d/%Y")
 
-# Chatroom functions ==============================================================================
+# Hangman functions ===============================================================================
+
+# Send message
+def send_message(message): flask_socketio.send(message, broadcast = True)
 
 # User connection handler
 @socket_io.on("user_connection")
 def user_connect_handler(data:dict):
     users_connected.change(by = 1)
-    flask_socketio.send(f"{data['username']} has joined the chatroom! There are now {users_connected.get()} users in this chatroom.", broadcast = True)
+    send_message(message = f"{data['username']} has joined the game! There are now {users_connected.get()}/2 users in the game.")
     # Add to database
     user_database[flask.request.sid] = data["username"]
 
@@ -54,7 +57,7 @@ def user_connect_handler(data:dict):
 def user_disconnection_handler():
     username = user_database[flask.request.sid]
     users_connected.change(by = -1)
-    flask_socketio.send(f"{username} has left the chatroom! There are now {users_connected.get()} users in this chatroom.", broadcast = True)
+    send_message(message = f"{username} has left the game! There are now {users_connected.get()} users in this game.")
     # Remove from database
     del user_database[flask.request.sid]
 
@@ -64,7 +67,7 @@ def user_disconnection_handler():
 @socket_io.on("send_message")
 def send_message_handler(data:dict):
     messages_sent.change(by = 1)
-    flask_socketio.send(f"[#{str(messages_sent.get()).zfill(4)}] {user_database[flask.request.sid]}: {data['message']}", broadcast = True)
+    send_message(message = f"[#{str(messages_sent.get()).zfill(4)}] {user_database[flask.request.sid]}: {data['message']}")
 
     log(text_to_log = f"{flask.request.sid}: {user_database[flask.request.sid]} sent message with data: \"{data}\" | Database: {user_database} | {get_current_time()}")
 
@@ -72,7 +75,7 @@ def send_message_handler(data:dict):
 @socket_io.on("message")
 def message_handler(message:str):
     print(f"Message recieved at {datetime.datetime.utcnow()} (GMT): \"{message}\"")
-    flask_socketio.send(message, broadcast = True)
+    send_message(message = message)
 
     log(text_to_log = f"Sending message to all: {message} | {get_current_time()}")
 
@@ -80,7 +83,7 @@ def message_handler(message:str):
 
 # Join game
 @main_app.route("/")
-def join_chatroom(): return flask.render_template("join.html")
+def join_game(): return flask.render_template("join.html")
 
 # Hangman game
 @main_app.route("/hangman", methods = ["POST", "GET"])
@@ -96,7 +99,7 @@ def hangman():
                 if username_db.lower() == username.lower():
                     flask.flash(f"Username \"{username_db}\" is already in use.")
                     break
-            else: return flask.render_template("chatroom.html", username = username)
+            else: return flask.render_template("hangman.html", username = username)
 
         # Either a GET request username not submitted
         except Exception: pass
@@ -109,4 +112,4 @@ def hangman():
 
 # Run
 if __name__ == "__main__":
-    socket_io.run(main_app)
+    socket_io.run(main_app, debug = True)

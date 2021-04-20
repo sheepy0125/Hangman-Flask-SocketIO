@@ -70,7 +70,6 @@ button, .center {
     width: 90%;
     border-radius: 15px;
     background-color: rgb(255, 180, 192);
-    margin: 0 auto;
 }
 
 .overflow_scroll {
@@ -83,6 +82,27 @@ input[type = text] {
     margin: 0 auto;
     display: block;
     text-align: center;
+}
+
+/* Parent for hangman and chat */
+.parent_hangman_chat {
+    display: inline;
+}
+
+/* Hangman area */
+.hangman_area {
+    height: 400px;
+    width: 500px;
+    margin: 20px;
+    float: left;
+}
+
+/* Chat area */
+.chat_area {
+    height: 400px; 
+    width: 220px;
+    margin: 20px;
+    float: right;
 }
 
 /* Flashes */
