@@ -7,22 +7,13 @@
 
 {% block body %}
 <div class = "content" style = "height: 450px;">
-    <div class = "parent_hangman_chat">
+    <div id = "parent_hangman_chat">
         <!-- Hangman area (left) -->
-        <div class = "sub_content hangman_area" id = "play_area">
-            <!-- Status -->
-            <div class = "hangman_status">
-                <hr class = "horizontal_line_hangman_status">
-                <div class = "vertical_line_hangman_status"></div>
-                <!-- Word status -->
-                <div class = "word_status">
-                    <h3>Word: "<span id = "word_status_censored">h-llo</span>"</h3> 
-                </div>
-                <!-- Guesses left -->
-                <div class = "guess_status">
-                    <h3>Guesses left: <span id = "guesses_left_text"></span></h3>
-                </div>
-            </div>
+        <div class = "sub_content hangman_area" id = "main_hangman_area">
+            <div id = "sub_main_hangman_area"></div>
+
+            <!-- Play area -->
+            <div id = "play_area"></div>
         </div>
 
         <!-- Chat area (right) -->
@@ -42,19 +33,42 @@
 
     <!-- Main JavaScript -->
     <script>
+        // Easter egg kind of
+        console.log(`
+        Hey! 
+        It looks like you're going into the console. 
+        It would be nice of you to not come in here as you can find the word that the word person has entered. 
+        Thanks! -Sheepy
+        `);
+
         // Setup
         const socket = io("http://127.0.0.1:5000");
         const username = "{{ username }}";
-
-        // Connect
-        socket.on("connect", function() { socket.emit("user_connection", {"username": username} ); });
-
-        // Chat ===================================================================================
+        const acceptable_regex = /[a-zA-Z]/g;
 
         const chat_html = document.getElementById("chat_ul");
         const send_chat_html = document.getElementById("send_button");
         const chat_text_input_html = document.getElementById("message_input");
         const chat_area_html = document.getElementById("chat_area");
+        const sub_main_hangman_area = document.getElementById("sub_main_hangman_area");
+        const parent_hangman_chat = document.getElementById("parent_hangman_chat");
+
+        // Connect
+        socket.on("connect", function() { socket.emit("user_connection", {"username": username} ); });
+
+        // Game ended because of a disconnect
+        socket.on("end_game_disconnect", function() {
+            parent_hangman_chat.innerHTML = `
+            <h1 class = "center center_text">A player has left!</h1>
+            <form action = "/", method = "GET"><input type = "submit" class = "button" value = "Exit"></form>
+            `;
+            socket.close();
+        });
+
+        // Redirect
+        socket.on("redirect", function(data) { window.location = data["new_url"]; });
+
+        // Chat ===================================================================================
 
         send_chat_html.addEventListener("click", send_chat_message);
 
@@ -70,13 +84,54 @@
 
         // Hangman ================================================================================
 
-        const play_area = document.getElementById("play_area");
+        // Set up statuses
+        function setup_statuses(word) {
+            play_area.innerHTML = ``
+
+            sub_main_hangman_area.innerHTML = `
+            <!-- Status -->
+            <div class = "hangman_status">
+                <hr class = "horizontal_line_hangman_status">
+                <div class = "vertical_line_hangman_status"></div>
+                <!-- Word status -->
+                <div class = "word_status">
+                    <h3>Word: "<span id = "word_status_censored"></span>"</h3> 
+                </div>
+                <!-- Guesses left -->
+                <div class = "guess_status">
+                    <h3>Guesses left: <span id = "guesses_left_text"></span></h3>
+                </div>
+            </div>
+            `;
+
+            // Reset statuses
+            var word_status_censored = document.getElementById("word_status_censored");
+            var guesses_left_text = document.getElementById("guesses_left_text");
+
+            for (letter = 0; letter < word.length; letter++) { word_status_censored.innerHTML += "-"; }
+            guesses_left_text.innerHTML = "6";
+        }
 
         // Send word to guesser
         function send_word_to_guesser() {
             // Get the word
             word = document.getElementById("word_input").value;
-            socket.emit("word_for_guesser", {"length": word.length, "word": word})
+
+            // Check if the word is acceptable
+            var status_html = document.getElementById("status");
+            // Blank check
+            if (word.length == 0) { status_html.innerHTML("<h4>The word cannot be empty.</h4>"); }
+            // Regex check
+            else if (word.match(acceptable_regex).length != word.length) {status_html.innerHTML("<h4>The word must be only letters!</h4>");}
+
+            // Everything is good
+            else { 
+                socket.emit("word_for_guesser", {"length": word.length, "word": word});
+                // After the word is sent to the guesser, set up the status
+                setup_statuses(word);
+            }
+
+            
         }
 
         // Recieve role (game started)
@@ -87,20 +142,21 @@
             if (role == "word_person") {
                 // Add word input
                 play_area.innerHTML = `
-                <p>Enter a word for the other player to guess</p>
-                <input type = "text" id = "word_input">
-                <button type = "button" id = "word_submit">Submit word</button>
+                <label class = "center center_text">Enter a word for the other player to guess<br><input type = "text" id = "word_input"></label><br>
+                <button type = "button" class = "button" id = "word_submit">Submit word</button>
                 <hr>
+                <div id = "status"></div>
                 `;
 
-                submit_word_button = document.getElementById("word_submit");
-
-                submit_word_button.addEventListener("click", send_word_to_guesser)
+                var submit_word_button = document.getElementById("word_submit");
+                submit_word_button.addEventListener("click", send_word_to_guesser);
             }
             // Guess person
             else if (role == "guess_person") {
                 socket.on("get_word", function(data) {
-                    play_area.innerHTML = `<p>${data}</p>`
+                    // Setup statuses
+                    setup_statuses(data["word"]);
+                    play_area.innerHTML = `<p>You see nothing.</p>`;
                 });
             }
         });

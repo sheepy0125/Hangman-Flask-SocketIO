@@ -85,7 +85,7 @@ input[type = text] {
 }
 
 /* Parent for hangman and chat */
-.parent_hangman_chat {
+#parent_hangman_chat {
     display: inline;
 }
 
@@ -149,7 +149,7 @@ be this bad. But, here I am. */
 }
 
 .chat_messages {
-    height: 300px;
+    height: 275px;
     width: 100%;
     border-radius: 0px;
 }

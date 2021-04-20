@@ -1,4 +1,4 @@
-## Import
+# Import
 import flask
 import flask_socketio
 import datetime
@@ -28,6 +28,7 @@ socket_io = flask_socketio.SocketIO(main_app, ping_timeout = 10, ping_interval =
 users_connected = Counter(initial_value = 0)
 messages_sent = Counter(initial_value = 0)
 guesses_left = Counter(initial_value = GUESSES)
+started_global = GlobalVariable(initial_value = False)
 host_id_global = GlobalVariable()
 player_id_global = GlobalVariable()
 user_database = {}
@@ -48,6 +49,29 @@ def escape_html(text:str):
     text = text.replace(">", "&gt;")
     return text.replace("<", "&lt;")
 
+# Check username
+def check_username(username:str):
+    # Blank username
+    if len(username) == 0: flask.flash("Invalid username: too short.")
+    # Full game
+    elif len(user_database) > 2: flask.flash("This game is full. Sorry!")    
+
+    # Send to hangman game with username
+    else:    
+        try:
+            # Make sure username is not already in database
+            for username_db in user_database.values():
+                if username_db.lower() == username.lower():
+                    flask.flash(f"Username \"{username_db}\" is already in use.")
+                    break
+            else: return True
+
+        # Either a GET request username not submitted
+        except Exception: pass
+    
+    # If haven't returned, then it didn't pass
+    return False
+
 # Hangman functions ===============================================================================
 
 # Send message
@@ -55,6 +79,8 @@ def send_message(message): flask_socketio.send(message, broadcast = True)
 
 # Start game
 def start_game(host_id:str, player_id:str):
+    started_global.var = True
+
     # Put the host and player id into a namespace variable
     host_id_global.var = host_id
     player_id_global.var = player_id
@@ -75,6 +101,14 @@ def word_for_guesser(data:dict):
 # User connection handler
 @socket_io.on("user_connection")
 def user_connect_handler(data:dict):
+    # If the username check failed, close the connection. 
+    # This most likely happens when the back button is pressed.
+    if not check_username(username = data["username"]): 
+        # Before we disconnect them, try to send them back to the main page
+        socket_io.emit("redirect", {"new_url": "/"}, room = flask.request.sid)
+        flask_socketio.disconnect()
+        return flask.redirect("/")
+
     users_connected.change(by = 1)
     send_message(message = f"{data['username']} has joined the game! There are now {users_connected.get()}/2 users in the game.")
     # Add to database
@@ -89,11 +123,25 @@ def user_connect_handler(data:dict):
 # User disconnection handler
 @socket_io.on("disconnect")
 def user_disconnection_handler():
-    username = user_database[flask.request.sid]
+    # Get username
+    try: username = user_database[flask.request.sid]
+    # Username wasn't in database, so just exit
+    except KeyError: return
     users_connected.change(by = -1)
     send_message(message = f"{username} has left the game! There are now {users_connected.get()} users in this game.")
     # Remove from database
     del user_database[flask.request.sid]
+
+    # If there is a disconnect while the game has started, end the game.
+    if started_global.var:
+        socket_io.emit("end_game_disconnect", broadcast = True)
+        # Reset variables
+        started_global.var = False
+        host_id_global.var = None
+        player_id_global.var = None
+        users_connected.count = 0
+        messages_sent.count = 0
+        guesses_left.count = 0
 
     log(text_to_log = f"{flask.request.sid}: {username} left | Database: {user_database} | {get_current_time()}")
 
@@ -123,27 +171,12 @@ def join_game(): return flask.render_template("join.html")
 # Hangman game
 @main_app.route("/hangman", methods = ["POST", "GET"])
 def hangman():
-    # Make sure the game is not full already
-    if len(user_database) < 2:
-        # Send to hangman game with username
-        try:
-            # Get username
-            username = flask.request.form["username_input"]
-            # Make sure username is not already in database
-            for username_db in user_database.values():
-                if username_db.lower() == username.lower():
-                    flask.flash(f"Username \"{username_db}\" is already in use.")
-                    break
-            else: return flask.render_template("hangman.html", username = username)
+    # Check username
+    username = flask.request.form["username_input"]
+    if not check_username(username = username): return flask.redirect("/")
 
-        # Either a GET request username not submitted
-        except Exception: pass
-    
-    # Game is full
-    else: flask.flash("This game is full. Sorry!")
+    return flask.render_template("hangman.html", username = username)
 
-    # If haven't returned, then just send back to join
-    return flask.redirect("/")
 
 # Run
 if __name__ == "__main__":
