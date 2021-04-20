@@ -6,7 +6,7 @@
 {% block title %}Hangman{% endblock %}
 
 {% block body %}
-<div class = "content" style = "height: 450px;">
+<div class = "content">
     <div id = "parent_hangman_chat">
         <!-- Hangman area (left) -->
         <div class = "sub_content hangman_area" id = "main_hangman_area">
@@ -20,7 +20,7 @@
         <div class = "sub_content chat_area">
             <!-- Send message -->
             <div class = "send_chat_message">
-                <label class = "center center_text">Message<input type = "text" id = "message_input"></label>
+                <label class = "center">Message<input type = "text" id = "message_input"></label>
                 <button type = "button" id = "send_button" class = "button">Send message</button>
             </div>
 
@@ -59,7 +59,7 @@
         // Game ended because of a disconnect
         socket.on("end_game_disconnect", function() {
             parent_hangman_chat.innerHTML = `
-            <h1 class = "center center_text">A player has left!</h1>
+            <h1 class = "center">A player has left!</h1>
             <form action = "/", method = "GET"><input type = "submit" class = "button" value = "Exit"></form>
             `;
             socket.close();
@@ -142,7 +142,7 @@
             if (role == "word_person") {
                 // Add word input
                 play_area.innerHTML = `
-                <label class = "center center_text">Enter a word for the other player to guess<br><input type = "text" id = "word_input"></label><br>
+                <label class = "center">Enter a word for the other player to guess<br><input type = "text" id = "word_input"></label><br>
                 <button type = "button" class = "button" id = "word_submit">Submit word</button>
                 <hr>
                 <div id = "status"></div>
@@ -160,7 +160,6 @@
                 });
             }
         });
-
+        
     </script>
-</div>
 {% endblock %}

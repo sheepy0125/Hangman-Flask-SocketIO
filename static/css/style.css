@@ -13,26 +13,12 @@ h1, h2, h3, h4, h5, p, li, a {
     padding: 5px;
 }
 
-.tiny_text {
-    font-size: small;
-    color: darkslategray;
-    width: 75%;
-    margin: 0 auto;
-}
-
-footer {
-    font-size: smaller;
-}
-
 /* Center */
-button, .center {
+.button, .center {
     margin: 0 auto;
     display: block;
     border-radius: 5px;
-}
-
-.center_text {
-    text-align: center; 
+    text-align: center;
 }
 
 /* Content */
@@ -43,26 +29,14 @@ button, .center {
     border-radius: 25px;
 }
 
-#content {
-    width: 70%;
-}
-
 /* Buttons */
 .button {
     display: block;
-    text-align: center;
-    margin: 0 auto;
     padding: 10px;
-    text-decoration: none;
-    background-color: lightslategray;
+    background-color: white;
     color: black;
     border: 1px solid black; 
     width: 30%;
-}
-
-.small_button {
-    padding: 1px;
-    width: 100%;
 }
 
 /* Sub content */
@@ -72,26 +46,7 @@ button, .center {
     background-color: rgb(255, 180, 192);
 }
 
-.overflow_scroll {
-    overflow: scroll;
-    overflow-x: initial;
-}
-
-input[type = text] {
-    width: 25%;
-    margin: 0 auto;
-    display: block;
-    text-align: center;
-}
-
-/* Parent for hangman and chat */
-#parent_hangman_chat {
-    display: inline;
-}
-
-/* Hangman area
-Also, I didn't know that CSS code could
-be this bad. But, here I am. */
+/* Hangman area */
 .hangman_area {
     height: 400px;
     width: 515px;
@@ -101,33 +56,31 @@ be this bad. But, here I am. */
 }
 
 .hangman_status {
-    height: 40px;
+    height: 50px;
 }
 
 .vertical_line_hangman_status {
     border-left: 2px solid black;   
-    height: 49px;
+    height: 50px;
     float: right;
-    transform: translateX(257.5px);
+    transform: translateX(calc(515px * 0.5));
     position: absolute;
 }
 
 .horizontal_line_hangman_status {
     border: 1px solid black;
     transform: translateY(40px);
-    width: 513.5px;
+    width: calc(515px - 1.5px);
     position: absolute;
 }
 
 .word_status {
     float: left;
-    text-align: center;
     transform: translateX(50%);
 }
 
 .guess_status {
     float: right;
-    text-align: center;
     display: block;
     transform: translateX(-50%);
 }
@@ -154,7 +107,12 @@ be this bad. But, here I am. */
     border-radius: 0px;
 }
 
-/* Flashes */
+/* Misc. */
+.overflow_scroll {
+    overflow: scroll;
+    overflow-x: initial;
+}
+
 .flashes {
     margin: 0 auto;
     border-radius: 15px;
