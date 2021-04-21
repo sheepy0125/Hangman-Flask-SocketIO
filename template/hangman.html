@@ -44,21 +44,25 @@
         // Setup
         const socket = io("http://127.0.0.1:5000");
         const username = "{{ username }}";
-        const acceptable_regex = /[a-zA-Z]/g;
+        const acceptable_regex = /[a-z]/g;
 
+        // HTML variables
         const chat_html = document.getElementById("chat_ul");
         const send_chat_html = document.getElementById("send_button");
         const chat_text_input_html = document.getElementById("message_input");
         const chat_area_html = document.getElementById("chat_area");
-        const sub_main_hangman_area = document.getElementById("sub_main_hangman_area");
-        const parent_hangman_chat = document.getElementById("parent_hangman_chat");
+        const sub_main_hangman_area_html = document.getElementById("sub_main_hangman_area");
+        const parent_hangman_chat_html = document.getElementById("parent_hangman_chat");
+        const play_area_html = document.getElementById("play_area");
+
+        // Misc. ==================================================================================
 
         // Connect
         socket.on("connect", function() { socket.emit("user_connection", {"username": username} ); });
 
         // Game ended because of a disconnect
         socket.on("end_game_disconnect", function() {
-            parent_hangman_chat.innerHTML = `
+            parent_hangman_chat_html.innerHTML = `
             <h1 class = "center">A player has left!</h1>
             <form action = "/", method = "GET"><input type = "submit" class = "button" value = "Exit"></form>
             `;
@@ -86,9 +90,9 @@
 
         // Set up statuses
         function setup_statuses(word) {
-            play_area.innerHTML = ``
+            play_area_html.innerHTML = `<div id = "status"></div>`;
 
-            sub_main_hangman_area.innerHTML = `
+            sub_main_hangman_area_html.innerHTML = `
             <!-- Status -->
             <div class = "hangman_status">
                 <hr class = "horizontal_line_hangman_status">
@@ -105,43 +109,111 @@
             `;
 
             // Reset statuses
-            var word_status_censored = document.getElementById("word_status_censored");
-            var guesses_left_text = document.getElementById("guesses_left_text");
+            word_status_censored_html = document.getElementById("word_status_censored");
+            guesses_left_text_html = document.getElementById("guesses_left_text");
 
-            for (letter = 0; letter < word.length; letter++) { word_status_censored.innerHTML += "-"; }
-            guesses_left_text.innerHTML = "6";
+            // Get initial censored word
+            for (letter = 0; letter < word.length; letter++) { word_status_censored_html.innerHTML += "-"; }
+            censored_word = word_status_censored_html.innerHTML;
+            guesses_left_text_html.innerHTML = "6";
+        }
+
+        // Letter has been guessed
+        socket.on("letter_has_been_guessed", function(data) {
+            // Get data
+            var letter_guessed = data["letter_guessed"];
+            var censored_word = data["censored_word"];
+            var guesses_left = data["guesses_left"];
+            var correct = data["correct"]
+
+            // Get HTML locations to update
+            const incorrect_guessed_letters_html = document.getElementById("guessed_letters_incorrect");
+            const correct_guessed_letters_html = document.getElementById("guessed_letters_correct");
+
+            // Update word
+            word_status_censored_html.innerHTML = `${censored_word}`;
+            guesses_left_text_html.innerHTML = `${guesses_left}`;
+
+            // Put the letter guessed into the proper place
+            if (correct == true) { correct_guessed_letters_html.innerHTML += `${letter_guessed}`; }
+            else { incorrect_guessed_letters_html.innerHTML += `${letter_guessed}`; }
+        });
+
+        // Letter has already been guessed
+        socket.on("letter_has_already_been_guessed", function () { const status_html = document.getElementById("status"); status_html.innerHTML = "<h4>This letter has already been guessed. Try again.</h4>" });
+
+        // Guess letter
+        function guess_letter() {
+            // Get HTML locations
+            const status_html = document.getElementById("status");
+            var letter_to_guess = document.getElementById("letter_guess_input").value;
+
+            // Check if the letter to guess is good
+            // Blank check
+            if (letter_to_guess.length == 0) { status_html.innerHTML("<h4>The letter cannot be empty.</h4>"); }
+            // Too long check
+            else if (letter_to_guess.length > 1) { status_html.innerHTML("<h4>The letter cannot be more than one letter.</h4>"); }
+            // Regex check
+            else if (( letter_to_guess.match(acceptable_regex).length != 1 ) || ( letter_to_guess.match(acceptable_regex == null) )) { status_html.innerHTML("<h4>The letter a letter!</h4>"); }
+
+            // Everything is good
+            else { socket.emit("guessed_letter", {"letter_guessed": letter_to_guess}); }
+        }
+
+        // Set up game
+        function setup_hangman(word) {
+            setup_statuses(word);
+
+            // Create the already selected word list
+            play_area_html.innerHTML = `
+            <div id = "gussed_letters_parent">
+                <p>Incorrect guesses: <span id = "guessed_letters_incorrect"></span></p>
+                <p>Correct guesses: <strong><span id = "guessed_letters_correct"></span></strong></p>
+            </div>
+            `;
+
+            // If we are the guesser, then set up the guessing area
+            if (role == "guess_person") {
+                // Create letter input
+                play_area_html.innerHTML += `
+                <label class = "center">Guess a letter<br><input type = "text" id = "letter_guess_input" maxlength: "1"></label><br>
+                <button type = "button" class = "button" id = "letter_guess_submit">Guess letter</button>
+                <hr><div id = "status"></div>
+                `;
+                const letter_guess_submit_html = document.getElementById("letter_guess_submit");
+                letter_guess_submit_html.addEventListener("click", guess_letter);
+            } else { play_area_html.innerHTML += `<div id = "status"></div>`; }
         }
 
         // Send word to guesser
         function send_word_to_guesser() {
+            const status_html = document.getElementById("status");
+
             // Get the word
-            word = document.getElementById("word_input").value;
+            const word = (document.getElementById("word_input").value).toLowerCase();
 
             // Check if the word is acceptable
-            var status_html = document.getElementById("status");
             // Blank check
             if (word.length == 0) { status_html.innerHTML("<h4>The word cannot be empty.</h4>"); }
             // Regex check
-            else if (word.match(acceptable_regex).length != word.length) {status_html.innerHTML("<h4>The word must be only letters!</h4>");}
+            else if (( word.match(acceptable_regex).length < word.length ) || ( word.match(acceptable_regex == null) )) { status_html.innerHTML("<h4>The word must be only letters!</h4>"); }
 
             // Everything is good
             else { 
-                socket.emit("word_for_guesser", {"length": word.length, "word": word});
-                // After the word is sent to the guesser, set up the status
-                setup_statuses(word);
+                setup_hangman(word);
+                socket.emit("word_for_guesser", {"word": word, "censored_word": word_status_censored_html.innerHTML});         
             }
-
-            
         }
 
         // Recieve role (game started)
         socket.on("recieve_role", function(data) {
-            // Get role
+            // Get role (global)
             role = data["role"];
+
             // Word person
             if (role == "word_person") {
                 // Add word input
-                play_area.innerHTML = `
+                play_area_html.innerHTML = `
                 <label class = "center">Enter a word for the other player to guess<br><input type = "text" id = "word_input"></label><br>
                 <button type = "button" class = "button" id = "word_submit">Submit word</button>
                 <hr>
@@ -151,13 +223,12 @@
                 var submit_word_button = document.getElementById("word_submit");
                 submit_word_button.addEventListener("click", send_word_to_guesser);
             }
+
             // Guess person
             else if (role == "guess_person") {
-                socket.on("get_word", function(data) {
-                    // Setup statuses
-                    setup_statuses(data["word"]);
-                    play_area.innerHTML = `<p>You see nothing.</p>`;
-                });
+                play_area_html.innerHTML = `<div id = "status"><h3>Please wait for the other person to type the word.</h3></div>`;
+                // Once we get the word, setup hangman
+                socket.on("get_word", function(data) { setup_hangman(data["word"]) });
             }
         });
         

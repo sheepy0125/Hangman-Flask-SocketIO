@@ -24,13 +24,16 @@ with open ("config.json") as config_file:
 
 main_app = flask.Flask(__name__, template_folder = "template")
 main_app.config["SECRET_KEY"] = SECRET_KEY
-socket_io = flask_socketio.SocketIO(main_app, ping_timeout = 10, ping_interval = 10)
+socket_io = flask_socketio.SocketIO(main_app)
 users_connected = Counter(initial_value = 0)
 messages_sent = Counter(initial_value = 0)
 guesses_left = Counter(initial_value = GUESSES)
 started_global = GlobalVariable(initial_value = False)
 host_id_global = GlobalVariable()
 player_id_global = GlobalVariable()
+guessed_letters_global = GlobalVariable(initial_value = [])
+game_word_global = GlobalVariable()
+censored_game_word_global = GlobalVariable()
 user_database = {}
 
 # Misc. functions =================================================================================
@@ -94,9 +97,52 @@ def start_game(host_id:str, player_id:str):
 # Word for guesser
 @socket_io.on("word_for_guesser")
 def word_for_guesser(data:dict):
+    # Put the word into the global word var
+    game_word_global.var = data["word"]
+    censored_game_word_global.var = data["censored_word"]
+
     log(text_to_log = f"Sending word to guesser (id {player_id_global.var}) | Data: {data} | Database: {user_database} | {get_current_time()}")
     flask_socketio.emit("get_word", data, room = player_id_global.var)
 
+# Guesser guessed a letter
+@socket_io.on("guessed_letter")
+def guessed_letter(data:dict):
+    letter_guessed = data["letter_guessed"]
+
+    # Check if it has already been guessed
+    if letter_guessed in guessed_letters_global.var:
+        socket_io.emit("letter_has_already_been_guessed")
+        return
+
+    # Append it to guessed letters list
+    guessed_letters_global.var.append(letter_guessed)
+
+    # Check if the letter is in the word
+    if letter_guessed in game_word_global.var:
+        correct = True
+        # Set censored word to empty
+        censored_word = ""
+        # Iterate through each letter in the word
+        for letter_word in game_word_global.var:
+            # Iterate through every guessed letter
+            for letter_guessed in guessed_letters_global.var:
+                # Add to censored word
+                if letter_guessed == letter_word: 
+                    censored_word += letter_guessed
+                    break
+            else:
+                censored_word += "-"
+
+        censored_game_word_global.var = censored_word
+    
+    # Letter wasn't in word, decrease guess
+    else: 
+        correct = False
+        guesses_left.change(by = -1)
+
+    # Give back the censored word
+    socket_io.emit("letter_has_been_guessed", {"letter_guessed": letter_guessed, "censored_word": censored_game_word_global.var, "guesses_left": guesses_left.get(), "correct": correct}, broadcast = True)
+        
 
 # User connection handler
 @socket_io.on("user_connection")
@@ -142,6 +188,8 @@ def user_disconnection_handler():
         users_connected.count = 0
         messages_sent.count = 0
         guesses_left.count = 0
+        game_word_global.var = None
+        guessed_letters_global.var = None
 
     log(text_to_log = f"{flask.request.sid}: {username} left | Database: {user_database} | {get_current_time()}")
 
@@ -176,7 +224,6 @@ def hangman():
     if not check_username(username = username): return flask.redirect("/")
 
     return flask.render_template("hangman.html", username = username)
-
 
 # Run
 if __name__ == "__main__":
