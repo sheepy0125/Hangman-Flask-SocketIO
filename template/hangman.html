@@ -45,6 +45,7 @@
         const socket = io("http://127.0.0.1:5000");
         const username = "{{ username }}";
         const acceptable_regex = /[a-z]/g;
+        socket.heartbeatTimeout = 10000;
 
         // HTML variables
         const chat_html = document.getElementById("chat_ul");
@@ -56,6 +57,9 @@
         const play_area_html = document.getElementById("play_area");
 
         // Misc. ==================================================================================
+
+        // Redirect
+        socket.on("redirect", function(data) { window.location = data["new_url"]; });
 
         // Connect
         socket.on("connect", function() { socket.emit("user_connection", {"username": username} ); });
@@ -77,9 +81,6 @@
             parent_hangman_chat_html.innerHTML = `<h1>The guesser got the word!</h1><h2>The word was ${data["word"]}</h2><form action = "/", method = "GET"><input type = "submit" class = "button" value = "Exit"></form>`;
             socket.close();
         });
-
-        // Redirect
-        socket.on("redirect", function(data) { window.location = data["new_url"]; });
 
         // Change status HTML
         function change_status_html(new_html) {
@@ -166,6 +167,7 @@
 
             // Get letter
             var letter_to_guess = document.getElementById("letter_guess_input").value;
+            letter_to_guess = letter_to_guess.toLowerCase()
 
             // Check if the letter to guess is good
             // Blank check
@@ -173,7 +175,7 @@
             // Too long check
             else if (letter_to_guess.length > 1) { change_status_html("<h4>The letter cannot be more than one letter.</h4>"); }
             // Regex check
-            else if ( (letter_to_guess.match(acceptable_regex == null) || (letter_to_guess.match(acceptable_regex).length != 1) )) { change_status_html("<h4>The letter a letter!</h4>"); }
+            else if (letter_to_guess.match(acceptable_regex) == null) { change_status_html("<h4>The letter must be a letter!</h4>"); }
 
             // Everything is good
             else { socket.emit("guessed_letter", {"letter_guessed": letter_to_guess}); }
@@ -213,7 +215,7 @@
             // Blank check
             if (word.length == 0) { change_status_html("<h4>The word cannot be empty.</h4>"); }
             // Regex check
-            else if (( word.match(acceptable_regex == null) || ( word.match(acceptable_regex).length < word.length) )) { change_status_html("<h4>The word must be only letters!</h4>"); }
+            else if ( (word.match(acceptable_regex) == null) || (word.match(acceptable_regex).length < word.length) ) { change_status_html("<h4>The word must be only letters!</h4>"); }
 
             // Everything is good
             else { 

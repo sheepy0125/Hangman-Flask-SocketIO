@@ -24,7 +24,7 @@ with open ("config.json") as config_file:
 
 main_app = flask.Flask(__name__, template_folder = "template")
 main_app.config["SECRET_KEY"] = SECRET_KEY
-socket_io = flask_socketio.SocketIO(main_app, ping_timeout = 10, ping_interval = 10)
+socket_io = flask_socketio.SocketIO(main_app, ping_timeout = 10000, ping_interval = 5000) # Note: this is in ms, not seconds. Don't ping them every 10 ms. Bad idea.
 
 # Setup globals
 users_connected = Counter(initial_value = 0)
