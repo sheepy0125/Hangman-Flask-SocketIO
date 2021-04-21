@@ -8,7 +8,7 @@ import json
 class Counter:
     def __init__(self, initial_value:int = 0): self.count = initial_value
     def change(self, by:int = 1): self.count += by
-    def get(self): return self.count
+    def get(self) -> int: return self.count
 
 # Global variable class
 class GlobalVariable:
@@ -24,7 +24,9 @@ with open ("config.json") as config_file:
 
 main_app = flask.Flask(__name__, template_folder = "template")
 main_app.config["SECRET_KEY"] = SECRET_KEY
-socket_io = flask_socketio.SocketIO(main_app)
+socket_io = flask_socketio.SocketIO(main_app, ping_timeout = 10, ping_interval = 10)
+
+# Setup globals
 users_connected = Counter(initial_value = 0)
 messages_sent = Counter(initial_value = 0)
 guesses_left = Counter(initial_value = GUESSES)
@@ -75,6 +77,17 @@ def check_username(username:str):
     # If haven't returned, then it didn't pass
     return False
 
+# Reset variables
+def reset_variables():
+    started_global.var = False
+    host_id_global.var = None
+    player_id_global.var = None
+    users_connected.count = 0
+    messages_sent.count = 0
+    guesses_left.count = 0
+    game_word_global.var = None
+    guessed_letters_global.var = None
+
 # Hangman functions ===============================================================================
 
 # Send message
@@ -88,10 +101,10 @@ def start_game(host_id:str, player_id:str):
     host_id_global.var = host_id
     player_id_global.var = player_id
 
-    log(text_to_log = f"Starting! | Database: {user_database} | {get_current_time()}")
     flask_socketio.emit("recieve_role", {"role": "word_person"}, room = host_id)
     flask_socketio.emit("recieve_role", {"role": "guess_person"}, room = player_id)
 
+    log(text_to_log = f"Starting! | Database: {user_database} | {get_current_time()}")
     send_message(f"Game is starting! The guesser is {user_database[player_id]} and the other person is {user_database[host_id]}")
 
 # Word for guesser
@@ -111,7 +124,7 @@ def guessed_letter(data:dict):
 
     # Check if it has already been guessed
     if letter_guessed in guessed_letters_global.var:
-        socket_io.emit("letter_has_already_been_guessed")
+        socket_io.emit("letter_has_already_been_guessed", room = player_id_global.var)
         return
 
     # Append it to guessed letters list
@@ -135,14 +148,29 @@ def guessed_letter(data:dict):
 
         censored_game_word_global.var = censored_word
     
+        # Check if the word has been guessed
+        if game_word_global.var == censored_word:
+            # Emit game won
+            log(text_to_log = f"The guesser won! | {get_current_time()}")
+            socket_io.emit("game_over_guesser_won", data = {"word": game_word_global.var}, broadcast = True)
+            return
+
     # Letter wasn't in word, decrease guess
-    else: 
+    else:
         correct = False
         guesses_left.change(by = -1)
 
+        # Check if game over
+        if guesses_left.get() <= 0:
+            # Emit game over
+            log(text_to_log = f"The guesser ran out of guesses! | {get_current_time()}")
+            socket_io.emit("game_over_out_of_guesses", data = {"word": game_word_global.var}, broadcast = True)
+            return
+
+
     # Give back the censored word
+    log(text_to_log = f"A letter has been guessed! | Correct: {correct} | Data: {data} | {get_current_time()}")
     socket_io.emit("letter_has_been_guessed", {"letter_guessed": letter_guessed, "censored_word": censored_game_word_global.var, "guesses_left": guesses_left.get(), "correct": correct}, broadcast = True)
-        
 
 # User connection handler
 @socket_io.on("user_connection")
@@ -152,8 +180,7 @@ def user_connect_handler(data:dict):
     if not check_username(username = data["username"]): 
         # Before we disconnect them, try to send them back to the main page
         socket_io.emit("redirect", {"new_url": "/"}, room = flask.request.sid)
-        flask_socketio.disconnect()
-        return flask.redirect("/")
+        return
 
     users_connected.change(by = 1)
     send_message(message = f"{data['username']} has joined the game! There are now {users_connected.get()}/2 users in the game.")
@@ -182,14 +209,7 @@ def user_disconnection_handler():
     if started_global.var:
         socket_io.emit("end_game_disconnect", broadcast = True)
         # Reset variables
-        started_global.var = False
-        host_id_global.var = None
-        player_id_global.var = None
-        users_connected.count = 0
-        messages_sent.count = 0
-        guesses_left.count = 0
-        game_word_global.var = None
-        guessed_letters_global.var = None
+        reset_variables()
 
     log(text_to_log = f"{flask.request.sid}: {username} left | Database: {user_database} | {get_current_time()}")
 
