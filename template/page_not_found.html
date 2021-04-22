@@ -1,0 +1,21 @@
+<!-- Page not found (404) page -->
+
+<!-- Use base.html -->
+{% extends "base.html" %} 
+
+<!-- Head -->
+{% block head %}{% endblock %}
+
+<!-- Body -->
+{% block body %}
+<div class = "content">
+    <h1>Error code 404: Page not found.</h1>
+    <div class = "sub_content center">
+        <h3>The page you have attempted to go to is not a valid page.</h3>
+        <h3>If you believe this to be a mistake, contact Sheepy.</h3>
+    </div>
+
+    <form method = "GET" action = "/"><button type = "submit" class = "button">Back to main</button></form>
+    <br><hr>
+
+{% endblock %}

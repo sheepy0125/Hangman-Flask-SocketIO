@@ -1,3 +1,4 @@
+# Setup ===========================================================================================
 # Import
 import flask
 import flask_socketio
@@ -20,19 +21,20 @@ with open ("config.json") as config_file:
     SECRET_KEY = config_dict["secret_key"]
     LOG_LOCATION = config_dict["log_location"]
     UTC_TIMEZONE_OFFSET = config_dict["utc-timezone-offset"]
-    GUESSES = config_dict["guesses"]
+    IP_ADDRESS = config_dict["ip_address"]
+    PORT = config_dict["port"]
 
 main_app = flask.Flask(__name__, template_folder = "template")
 main_app.config["SECRET_KEY"] = SECRET_KEY
-socket_io = flask_socketio.SocketIO(main_app)#, ping_timeout = 10000, ping_interval = 5000) # Note: this is in ms, not seconds. Don't ping them every 10 ms. Bad idea.
+socket_io = flask_socketio.SocketIO(main_app)
 
 # Setup globals
 users_connected = Counter(initial_value = 0)
 messages_sent = Counter(initial_value = 0)
-guesses_left = Counter(initial_value = GUESSES)
+guesses_left = Counter(initial_value = 6)
 started_global = GlobalVariable(initial_value = False)
-host_id_global = GlobalVariable()
-player_id_global = GlobalVariable()
+executioner_id_global = GlobalVariable()
+guesser_id_global = GlobalVariable()
 guessed_letters_global = GlobalVariable(initial_value = [])
 game_word_global = GlobalVariable()
 censored_game_word_global = GlobalVariable()
@@ -80,8 +82,8 @@ def check_username(username:str):
 # Reset variables
 def reset_variables():
     started_global.var = False
-    host_id_global.var = None
-    player_id_global.var = None
+    executioner_id_global.var = None
+    guesser_id_global.var = None
     users_connected.count = 0
     messages_sent.count = 0
     guesses_left.count = 6
@@ -94,18 +96,18 @@ def reset_variables():
 def send_message(message): flask_socketio.send(message, broadcast = True)
 
 # Start game
-def start_game(host_id:str, player_id:str):
+def start_game(executioner_id:str, guesser_id:str):
     started_global.var = True
 
     # Put the host and player id into a namespace variable
-    host_id_global.var = host_id
-    player_id_global.var = player_id
+    executioner_id_global.var = executioner_id
+    guesser_id_global.var = guesser_id
 
-    flask_socketio.emit("recieve_role", {"role": "word_person"}, room = host_id)
-    flask_socketio.emit("recieve_role", {"role": "guess_person"}, room = player_id)
+    flask_socketio.emit("recieve_role", {"role": "executioner"}, room = executioner_id)
+    flask_socketio.emit("recieve_role", {"role": "guesser"}, room = guesser_id)
 
     log(text_to_log = f"Starting! | Database: {user_database} | {get_current_time()}")
-    send_message(f"Game is starting! The guesser is {user_database[player_id]} and the other person is {user_database[host_id]}")
+    send_message(f"Game is starting! The guesser is {user_database[guesser_id]} and the executioner is {user_database[executioner_id]}")
 
 # Word for guesser
 @socket_io.on("word_for_guesser")
@@ -114,8 +116,8 @@ def word_for_guesser(data:dict):
     game_word_global.var = data["word"]
     censored_game_word_global.var = data["censored_word"]
 
-    log(text_to_log = f"Sending word to guesser (id {player_id_global.var}) | Data: {data} | Database: {user_database} | {get_current_time()}")
-    flask_socketio.emit("get_word", data, room = player_id_global.var)
+    log(text_to_log = f"Sending word to guesser (id {guesser_id_global.var}) | Data: {data} | Database: {user_database} | {get_current_time()}")
+    flask_socketio.emit("get_word", data, room = guesser_id_global.var)
 
 # Guesser guessed a letter
 @socket_io.on("guessed_letter")
@@ -124,7 +126,7 @@ def guessed_letter(data:dict):
 
     # Check if it has already been guessed
     if letter_guessed in guessed_letters_global.var:
-        socket_io.emit("letter_has_already_been_guessed", room = player_id_global.var)
+        socket_io.emit("letter_has_already_been_guessed", room = guesser_id_global.var)
         return
 
     # Append it to guessed letters list
@@ -191,7 +193,7 @@ def user_connect_handler(data:dict):
 
     # If there are more than two people, get the host.
     all_user_ids = list(user_database.keys())
-    if len(all_user_ids) >= 2: start_game(host_id = all_user_ids[0], player_id = all_user_ids[1])
+    if len(all_user_ids) >= 2: start_game(executioner_id = all_user_ids[0], guesser_id = all_user_ids[1])
 
 # User disconnection handler
 @socket_io.on("disconnect")
@@ -235,6 +237,17 @@ def message_handler(message:str):
 
 # Website navigation ==============================================================================
 
+# Errors
+# 404 - Page not found
+@main_app.errorhandler(404)
+def page_not_found(error):
+    return flask.render_template("page_not_found.html"), 404
+
+# 500 - Internal server error
+@main_app.errorhandler(500)
+def internal_server_error(error):
+    return flask.render_template("internal_server_error.html"), 500
+
 # Join game
 @main_app.route("/")
 def join_game(): return flask.render_template("join.html")
@@ -242,13 +255,18 @@ def join_game(): return flask.render_template("join.html")
 # Hangman game
 @main_app.route("/hangman", methods = ["POST", "GET"])
 def hangman():
+    try: username = flask.request.form["username_input"]
+    # Username was not entered (either that or GET request)
+    except KeyError: return flask.redirect("/")
+    
     # Check username
-    username = flask.request.form["username_input"]
     if not check_username(username = username): return flask.redirect("/")
 
-    return flask.render_template("hangman.html", username = username)
+    # Didn't return means the username was good, send to the hangman page.
+    return flask.render_template("hangman.html", username = username, ip_address = IP_ADDRESS, port = PORT)
 
 # Run
 if __name__ == "__main__":
-    socket_io.run(main_app, debug = True)
-    socket_io.run(main_app, host = "0.0.0.0", port = 5001)
+    socket_io.run(main_app, host = "127.0.0.1", port = 5000, debug = True) # Local, debug
+    # socket_io.run(main_app, host = "127.0.0.1", port = 5000, debug = False) # Local, no debug
+    # socket_io.run(main_app, debug = False, host = "0.0.0.0", port = PORT) # Production

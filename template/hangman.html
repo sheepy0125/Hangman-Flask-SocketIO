@@ -35,15 +35,14 @@
     <script>
         // Easter egg kind of
         console.log(`
-        Hey! 
-        It looks like you're going into the console. 
-        It would be nice of you to not come in here as you can find the word that the word person has entered. 
-        Thanks! -Sheepy
+        Hey! It looks like you're going into the console. 
+        You won't be able to find the word in here, but you will be able to do stuff that isn't allowed.
+        (e.g. send illegal messages to the server)
+        So, it'd be nice if you leave.
+        Thanks! -Sheepy        
         `);
-
         // Setup
-        const socket = io("http://127.0.0.1:5000");
-        // const socket = io("http://my_ip_address_lol:5001")
+        const socket = io("http://{{ ip_address }}:{{ port }}");
         const username = "{{ username }}";
         const acceptable_regex = /[a-z]/g;
         socket.heartbeatTimeout = 10000;
@@ -73,7 +72,7 @@
 
         // Game over (out of guesses)
         socket.on("game_over_out_of_guesses", function(data) {
-            parent_hangman_chat_html.innerHTML = `<h1>Game over!</h1><h2>The word was ${data["word"]}</h2><form action = "/", method = "GET"><input type = "submit" class = "button" value = "Exit"></form>`;
+            parent_hangman_chat_html.innerHTML = `<h1>The executioner won!</h1><h2>The word was ${data["word"]}</h2><form action = "/", method = "GET"><input type = "submit" class = "button" value = "Exit"></form>`;
             socket.close();
         });
 
@@ -96,7 +95,7 @@
         send_chat_html.addEventListener("click", send_chat_message);
 
         // Chat message sent from server
-        socket.on("message", function(message) { 
+        socket.on("message", function(message) {
             chat_html.innerHTML += `<p>${message}</p>`;
             // Auto scroll chat area
             chat_area_html.scrollTop = chat_area_html.scrollHeight;
@@ -112,8 +111,8 @@
             // Get role (global)
             role = data["role"];
 
-            // Word person
-            if (role == "word_person") {
+            // Executioner
+            if (role == "executioner") {
                 // Add word input
                 play_area_html.innerHTML = `
                 <label class = "center">Enter a word for the other player to guess<br><input type = "text" id = "word_input"></label><br>
@@ -126,8 +125,8 @@
                 submit_word_button.addEventListener("click", send_word_to_guesser);
             }
 
-            // Guess person
-            else if (role == "guess_person") {
+            // Guesser
+            else if (role == "guesser") {
                 play_area_html.innerHTML = `<div id = "status"><h3>Please wait for the other person to type the word.</h3></div>`;
                 // Once we get the word, setup hangman
                 socket.on("get_word", function(data) { setup_hangman(data["word"]) });
@@ -145,7 +144,7 @@
                 <div class = "vertical_line_hangman_status"></div>
                 <!-- Word status -->
                 <div class = "word_status">
-                    <h3>Word: "<span id = "word_status_censored"></span>"</h3> 
+                    <h3>Word: "<span id = "word_status_censored"></span>"</h3>
                 </div>
                 <!-- Guesses left -->
                 <div class = "guess_status">
@@ -198,7 +197,7 @@
             `;
 
             // If we are the guesser, then set up the guessing area
-            if (role == "guess_person") {
+            if (role == "guesser") {
                 // Create letter input
                 play_area_html.innerHTML += `
                 <label class = "center">Guess a letter<br><input type = "text" id = "letter_guess_input" maxlength: "1"></label><br>
@@ -246,9 +245,9 @@
             else if ( (word.match(acceptable_regex) == null) || (word.match(acceptable_regex).length < word.length) ) { change_status_html("<h4>The word must be only letters!</h4>"); }
 
             // Everything is good
-            else { 
+            else {
                 setup_hangman(word);
-                socket.emit("word_for_guesser", {"word": word, "censored_word": word_status_censored_html.innerHTML});         
+                socket.emit("word_for_guesser", {"word": word, "censored_word": word_status_censored_html.innerHTML});
             }
         }
     </script>
