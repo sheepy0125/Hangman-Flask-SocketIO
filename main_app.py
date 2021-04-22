@@ -24,7 +24,7 @@ with open ("config.json") as config_file:
 
 main_app = flask.Flask(__name__, template_folder = "template")
 main_app.config["SECRET_KEY"] = SECRET_KEY
-socket_io = flask_socketio.SocketIO(main_app, ping_timeout = 10000, ping_interval = 5000) # Note: this is in ms, not seconds. Don't ping them every 10 ms. Bad idea.
+socket_io = flask_socketio.SocketIO(main_app)#, ping_timeout = 10000, ping_interval = 5000) # Note: this is in ms, not seconds. Don't ping them every 10 ms. Bad idea.
 
 # Setup globals
 users_connected = Counter(initial_value = 0)
@@ -84,9 +84,9 @@ def reset_variables():
     player_id_global.var = None
     users_connected.count = 0
     messages_sent.count = 0
-    guesses_left.count = 0
+    guesses_left.count = 6
     game_word_global.var = None
-    guessed_letters_global.var = None
+    guessed_letters_global.var = []
 
 # Hangman functions ===============================================================================
 
@@ -251,3 +251,4 @@ def hangman():
 # Run
 if __name__ == "__main__":
     socket_io.run(main_app, debug = True)
+    socket_io.run(main_app, host = "0.0.0.0", port = 5001)

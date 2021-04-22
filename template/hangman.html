@@ -43,6 +43,7 @@
 
         // Setup
         const socket = io("http://127.0.0.1:5000");
+        // const socket = io("http://my_ip_address_lol:5001")
         const username = "{{ username }}";
         const acceptable_regex = /[a-z]/g;
         socket.heartbeatTimeout = 10000;
