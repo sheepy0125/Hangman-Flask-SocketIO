@@ -93,16 +93,28 @@
         // Chat ===================================================================================
 
         send_chat_html.addEventListener("click", send_chat_message);
+        // If user presses enter in chat box, click send button
+        chat_text_input_html.addEventListener("keyup", function(event) { 
+            // Check if keycode is enter (13)
+            if (event.keyCode == 13) { send_chat_html.click(); }
+        }); 
 
         // Chat message sent from server
         socket.on("message", function(message) {
-            chat_html.innerHTML += `<p>${message}</p>`;
+            chat_html.innerHTML += `<p class = .chat_message>${message}</p>`;
             // Auto scroll chat area
             chat_area_html.scrollTop = chat_area_html.scrollHeight;
         });
 
         // Send chat message
-        function send_chat_message() { socket.emit("send_message", {"message": chat_text_input_html.value}); }
+        function send_chat_message() { 
+            // Make sure message is not nothing
+            if (chat_text_input_html.value != "") {
+                socket.emit("send_message", {"message": chat_text_input_html.value}); 
+                // Reset the message input
+                chat_text_input_html.value = "";
+            }
+        }
 
         // Hangman ================================================================================
 
