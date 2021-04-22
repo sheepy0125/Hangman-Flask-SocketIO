@@ -200,7 +200,6 @@ def user_disconnection_handler():
     try: username = user_database[flask.request.sid]
     # Username wasn't in database, so just exit
     except KeyError: return
-    users_connected.change(by = -1)
     send_message(message = f"{username} has left the game! There are now {users_connected.get()} users in this game.")
     # Remove from database
     del user_database[flask.request.sid]
@@ -210,6 +209,10 @@ def user_disconnection_handler():
         socket_io.emit("end_game_disconnect", broadcast = True)
         # Reset variables
         reset_variables()
+    else: 
+        users_connected.change(by = -1)
+        # Fix underflow error because my code is bad and calls reset twice when game ends
+        if users_connected.get() < 0: users_connected.count = 0
 
     log(text_to_log = f"{flask.request.sid}: {username} left | Database: {user_database} | {get_current_time()}")
 

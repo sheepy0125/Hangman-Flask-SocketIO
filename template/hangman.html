@@ -106,6 +106,33 @@
 
         // Hangman ================================================================================
 
+        // Recieve role (game started)
+        socket.on("recieve_role", function(data) {
+            // Get role (global)
+            role = data["role"];
+
+            // Word person
+            if (role == "word_person") {
+                // Add word input
+                play_area_html.innerHTML = `
+                <label class = "center">Enter a word for the other player to guess<br><input type = "text" id = "word_input"></label><br>
+                <button type = "button" class = "button" id = "word_submit">Submit word</button>
+                <hr>
+                <div id = "status"></div>
+                `;
+
+                var submit_word_button = document.getElementById("word_submit");
+                submit_word_button.addEventListener("click", send_word_to_guesser);
+            }
+
+            // Guess person
+            else if (role == "guess_person") {
+                play_area_html.innerHTML = `<div id = "status"><h3>Please wait for the other person to type the word.</h3></div>`;
+                // Once we get the word, setup hangman
+                socket.on("get_word", function(data) { setup_hangman(data["word"]) });
+            }
+        });
+
         // Set up statuses
         function setup_statuses(word) {
             play_area_html.innerHTML = `<div id = "status"></div>`;
@@ -135,30 +162,6 @@
             censored_word = word_status_censored_html.innerHTML;
             guesses_left_text_html.innerHTML = "6";
         }
-
-        // Letter has been guessed
-        socket.on("letter_has_been_guessed", function(data) {
-            // Get data
-            var letter_guessed = data["letter_guessed"];
-            var censored_word = data["censored_word"];
-            var guesses_left = data["guesses_left"];
-            var correct = data["correct"]
-
-            // Get HTML locations to update
-            const incorrect_guessed_letters_html = document.getElementById("guessed_letters_incorrect");
-            const correct_guessed_letters_html = document.getElementById("guessed_letters_correct");
-
-            // Update word
-            word_status_censored_html.innerHTML = `${censored_word}`;
-            guesses_left_text_html.innerHTML = `${guesses_left}`;
-
-            // Put the letter guessed into the proper place
-            if (correct == true) { correct_guessed_letters_html.innerHTML += `${letter_guessed}`; }
-            else { incorrect_guessed_letters_html.innerHTML += `${letter_guessed}`; }
-        });
-
-        // Letter has already been guessed
-        socket.on("letter_has_already_been_guessed", function () { status_html.change_status_html("<h4>This letter has already been guessed. Try again.</h4>"); });
 
         // Guess letter
         function guess_letter() {
@@ -206,6 +209,30 @@
             } else { play_area_html.innerHTML += `<div id = "status"></div>`; }
         }
 
+        // Letter has been guessed
+        socket.on("letter_has_been_guessed", function(data) {
+            // Get data
+            var letter_guessed = data["letter_guessed"];
+            var censored_word = data["censored_word"];
+            var guesses_left = data["guesses_left"];
+            var correct = data["correct"]
+
+            // Get HTML locations to update
+            const incorrect_guessed_letters_html = document.getElementById("guessed_letters_incorrect");
+            const correct_guessed_letters_html = document.getElementById("guessed_letters_correct");
+
+            // Update word
+            word_status_censored_html.innerHTML = `${censored_word}`;
+            guesses_left_text_html.innerHTML = `${guesses_left}`;
+
+            // Put the letter guessed into the proper place
+            if (correct == true) { correct_guessed_letters_html.innerHTML += `${letter_guessed}`; }
+            else { incorrect_guessed_letters_html.innerHTML += `${letter_guessed}`; }
+        });
+
+        // Letter has already been guessed
+        socket.on("letter_has_already_been_guessed", function () { change_status_html("<h4>This letter has already been guessed. Try again.</h4>"); });
+
         // Send word to guesser
         function send_word_to_guesser() {
             // Get the word
@@ -223,33 +250,5 @@
                 socket.emit("word_for_guesser", {"word": word, "censored_word": word_status_censored_html.innerHTML});         
             }
         }
-
-        // Recieve role (game started)
-        socket.on("recieve_role", function(data) {
-            // Get role (global)
-            role = data["role"];
-
-            // Word person
-            if (role == "word_person") {
-                // Add word input
-                play_area_html.innerHTML = `
-                <label class = "center">Enter a word for the other player to guess<br><input type = "text" id = "word_input"></label><br>
-                <button type = "button" class = "button" id = "word_submit">Submit word</button>
-                <hr>
-                <div id = "status"></div>
-                `;
-
-                var submit_word_button = document.getElementById("word_submit");
-                submit_word_button.addEventListener("click", send_word_to_guesser);
-            }
-
-            // Guess person
-            else if (role == "guess_person") {
-                play_area_html.innerHTML = `<div id = "status"><h3>Please wait for the other person to type the word.</h3></div>`;
-                // Once we get the word, setup hangman
-                socket.on("get_word", function(data) { setup_hangman(data["word"]) });
-            }
-        });
-        
     </script>
 {% endblock %}
