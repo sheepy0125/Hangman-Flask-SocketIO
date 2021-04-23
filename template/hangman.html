@@ -10,10 +10,8 @@
     <div id = "parent_hangman_chat">
         <!-- Hangman area (left) -->
         <div class = "sub_content hangman_area" id = "main_hangman_area">
-            <div id = "sub_main_hangman_area"></div>
-
-            <!-- Play area -->
-            <div id = "play_area"></div>
+            <!-- Status -->
+            <div id = "status"></div>
         </div>
 
         <!-- Chat area (right) -->
@@ -52,9 +50,7 @@
         const send_chat_html = document.getElementById("send_button");
         const chat_text_input_html = document.getElementById("message_input");
         const chat_area_html = document.getElementById("chat_area");
-        const sub_main_hangman_area_html = document.getElementById("sub_main_hangman_area");
-        const parent_hangman_chat_html = document.getElementById("parent_hangman_chat");
-        const play_area_html = document.getElementById("play_area");
+        const main_hangman_area = document.getElementById("main_hangman_area")
 
         // Misc. ==================================================================================
 
@@ -85,7 +81,7 @@
         // Change status HTML
         function change_status_html(new_html) {
             // Get status
-            const status_html = document.getElementById("status");
+            var status_html = document.getElementById("status");
             // Change it
             status_html.innerHTML = new_html;
         }
@@ -118,19 +114,52 @@
 
         // Hangman ================================================================================
 
+        // Setup HTML
+        function setup_hangman_html() {
+            main_hangman_area.innerHTML = `
+            <!-- Guess area -->
+            <div id = "sub_main_hangman_area"></div>
+
+            <div id = "parent_image_play_area">
+                <!-- Hangman image -->
+                <div id = "hangman_image_area" class = "widget"></div>
+
+                <!-- Play area -->
+                <div id = "play_area">
+                    <!-- Guessed letter lists -->
+                    <div id = "guessed_letters_parent" class = "widget"></div>
+
+                    <!-- Word / letter input -->
+                    <div id = "word_letter_input" class = "widget"></div>
+
+                    <!-- Status -->
+                    <div id = "status"></div>
+                </div>
+            </div>
+            `;
+
+            // Setup HTML variables
+            sub_main_hangman_area_html = document.getElementById("sub_main_hangman_area");
+            parent_hangman_chat_html = document.getElementById("parent_hangman_chat");
+            play_area_html = document.getElementById("play_area");
+            guessed_letter_lists_html = document.getElementById("guessed_letters_parent");
+            word_letter_input_html = document.getElementById("word_letter_input");
+        }
+
         // Recieve role (game started)
         socket.on("recieve_role", function(data) {
+            // Setup hangman HTML
+            setup_hangman_html();
+
             // Get role (global)
             role = data["role"];
 
             // Executioner
             if (role == "executioner") {
                 // Add word input
-                play_area_html.innerHTML = `
+                word_letter_input_html.innerHTML = `
                 <label class = "center">Enter a word for the other player to guess<br><input type = "text" id = "word_input"></label><br>
                 <button type = "button" class = "button" id = "word_submit">Submit word</button>
-                <hr>
-                <div id = "status"></div>
                 `;
 
                 var submit_word_button = document.getElementById("word_submit");
@@ -139,7 +168,7 @@
 
             // Guesser
             else if (role == "guesser") {
-                play_area_html.innerHTML = `<div id = "status"><h3>Please wait for the other person to type the word.</h3></div>`;
+                change_status_html(`<h3>Please wait for the other person to type the word.</h3>`);
                 // Once we get the word, setup hangman
                 socket.on("get_word", function(data) { setup_hangman(data["word"]) });
             }
@@ -147,8 +176,6 @@
 
         // Set up statuses
         function setup_statuses(word) {
-            play_area_html.innerHTML = `<div id = "status"></div>`;
-
             sub_main_hangman_area_html.innerHTML = `
             <!-- Status -->
             <div class = "hangman_status">
@@ -165,11 +192,10 @@
             </div>
             `;
 
-            // Reset statuses
+            // Get initial censored word
             word_status_censored_html = document.getElementById("word_status_censored");
             guesses_left_text_html = document.getElementById("guesses_left_text");
 
-            // Get initial censored word
             for (letter = 0; letter < word.length; letter++) { word_status_censored_html.innerHTML += "-"; }
             censored_word = word_status_censored_html.innerHTML;
             guesses_left_text_html.innerHTML = "6";
@@ -178,11 +204,11 @@
         // Guess letter
         function guess_letter() {
             // Reset status
-            change_status_html("")
+            change_status_html("");
 
             // Get letter
             var letter_to_guess = document.getElementById("letter_guess_input").value;
-            letter_to_guess = letter_to_guess.toLowerCase()
+            letter_to_guess = letter_to_guess.toLowerCase();
 
             // Check if the letter to guess is good
             // Blank check
@@ -198,27 +224,28 @@
 
         // Set up game
         function setup_hangman(word) {
+            // Reset
+            change_status_html("");
+            word_letter_input_html.innerHTML = ``
+
             setup_statuses(word);
 
             // Create the already selected word list
-            play_area_html.innerHTML = `
-            <div id = "gussed_letters_parent">
-                <p>Incorrect guesses: <span id = "guessed_letters_incorrect"></span></p>
-                <p>Correct guesses: <strong><span id = "guessed_letters_correct"></span></strong></p>
-            </div>
+            guessed_letter_lists_html.innerHTML = `
+            <p>Incorrect guesses: <strong><span id = "guessed_letters_incorrect"></span></strong></p>
+            <p>Correct guesses: <strong><span id = "guessed_letters_correct"></span></strong></p>
             `;
 
             // If we are the guesser, then set up the guessing area
             if (role == "guesser") {
                 // Create letter input
-                play_area_html.innerHTML += `
+                word_letter_input_html.innerHTML = `
                 <label class = "center">Guess a letter<br><input type = "text" id = "letter_guess_input" maxlength: "1"></label><br>
                 <button type = "button" class = "button" id = "letter_guess_submit">Guess letter</button>
-                <hr><div id = "status"></div>
                 `;
-                const letter_guess_submit_html = document.getElementById("letter_guess_submit");
+                var letter_guess_submit_html = document.getElementById("letter_guess_submit");
                 letter_guess_submit_html.addEventListener("click", guess_letter);
-            } else { play_area_html.innerHTML += `<div id = "status"></div>`; }
+            }
         }
 
         // Letter has been guessed
@@ -227,11 +254,11 @@
             var letter_guessed = data["letter_guessed"];
             var censored_word = data["censored_word"];
             var guesses_left = data["guesses_left"];
-            var correct = data["correct"]
+            var correct = data["correct"];
 
             // Get HTML locations to update
-            const incorrect_guessed_letters_html = document.getElementById("guessed_letters_incorrect");
-            const correct_guessed_letters_html = document.getElementById("guessed_letters_correct");
+            var incorrect_guessed_letters_html = document.getElementById("guessed_letters_incorrect");
+            var correct_guessed_letters_html = document.getElementById("guessed_letters_correct");
 
             // Update word
             word_status_censored_html.innerHTML = `${censored_word}`;
@@ -239,11 +266,15 @@
 
             // Put the letter guessed into the proper place
             if (correct == true) { correct_guessed_letters_html.innerHTML += `${letter_guessed}`; }
-            else { incorrect_guessed_letters_html.innerHTML += `${letter_guessed}`; }
+            else { 
+                incorrect_guessed_letters_html.innerHTML += `${letter_guessed}`;
+                // Update image
+                change_hangman_image(guesses_left);
+            }
         });
 
         // Letter has already been guessed
-        socket.on("letter_has_already_been_guessed", function () { change_status_html("<h4>This letter has already been guessed. Try again.</h4>"); });
+        socket.on("letter_has_already_been_guessed", function() { change_status_html("<h4>This letter has already been guessed. Try again.</h4>"); });
 
         // Send word to guesser
         function send_word_to_guesser() {
@@ -259,8 +290,19 @@
             // Everything is good
             else {
                 setup_hangman(word);
-                socket.emit("word_for_guesser", {"word": word, "censored_word": word_status_censored_html.innerHTML});
+                socket.emit("word_for_guesser", {"word": word, "censored_word": word_status_censored_html.innerHTML} );
             }
+        }
+
+        // Update hangman image
+        function change_hangman_image(guesses_left) {
+            // Get the hangman image HTML
+            const hangman_image_area_html = document.getElementById("hangman_image_area");
+
+            // Update it
+            hangman_image_area_html.innerHTML = `
+            <image class = "center" src = "/static/images/${guesses_left}_guesses.png" alt = "Hangman image - ${guesses_left} guesses left">
+            `;
         }
     </script>
 {% endblock %}

@@ -111,6 +111,47 @@ h1, h2, h3, h4, h5, p, li, a {
     text-align: left;
 }
 
+/* Widgets */
+.widget {
+    background-color: rgb(255, 180, 202);
+    border: 1px dotted white;
+    border-radius: 10px;
+    position: absolute;
+    margin: 20px;
+}
+
+.hangman_status {
+    background-color: rgb(255, 180, 202);
+    border-radius: 10px 10px 0px 0px;
+}
+
+#hangman_image_area {
+    width: 200px;
+    height: 310px;
+    float: left;
+}
+
+#hangman_image_area img {
+    width: 256px;
+    height: auto;
+}
+
+#guessed_letters_parent {
+    width: 270px;
+    height: 155px;
+    transform: translateX(205px);
+}
+
+#word_letter_input {
+    width: 270px;
+    height: 150px;
+    transform: translate(205px, 160px);
+}
+
+#status {
+    transform: translateY(-15px);
+}
+
 /* Misc. */
 .overflow_scroll {
     overflow: scroll;
