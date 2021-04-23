@@ -148,6 +148,10 @@ h1, h2, h3, h4, h5, p, li, a {
     transform: translate(205px, 160px);
 }
 
+#word_letter_input:empty {
+    display: none;
+}
+
 #status {
     transform: translateY(-15px);
 }

@@ -61,7 +61,7 @@ def check_username(username:str):
     # Blank username
     if len(username) == 0: flask.flash("Invalid username: too short.")
     # Full game
-    elif len(user_database) > 2: flask.flash("This game is full. Sorry!")    
+    elif users_connected.get() >= 2: flask.flash("This game is full. Sorry!")
 
     # Send to hangman game with username
     else:    
@@ -267,6 +267,6 @@ def hangman():
 
 # Run
 if __name__ == "__main__":
-    # socket_io.run(main_app, host = "127.0.0.1", port = 5000, debug = True) # Local, debug
+    socket_io.run(main_app, host = "127.0.0.1", port = 5000, debug = True) # Local, debug
     # socket_io.run(main_app, host = "127.0.0.1", port = 5000, debug = False) # Local, no debug
-    socket_io.run(main_app, debug = False, host = "0.0.0.0", port = PORT) # Production
+    # socket_io.run(main_app, debug = False, host = "0.0.0.0", port = PORT) # Production
