@@ -31,10 +31,10 @@ socket_io = flask_socketio.SocketIO(main_app)
 class Hangman:
     # Initialize
     def __init__(self):
-        self.reset_variables()
+        self.setup_variables()
 
-    # Reset variables
-    def reset_variables(self):
+    # Set up variables
+    def setup_variables(self):
         self.users_connected = 0
         self.messages_sent = 0
         self.guesses_left = 6
@@ -47,13 +47,17 @@ class Hangman:
         self.users_readied_up = set()
         self.user_database = {}
 
-    # Start game
-    def start_game(self, executioner_id:str, guesser_id:str):
-        # Reset variables
+    # Reset variables
+    def reset_variables(self):
+        self.guesses_left = 6
         self.guessed_letters.clear()
         self.users_readied_up.clear()
         self.game_word = None
-        
+
+    # Start game
+    def start_game(self, executioner_id:str, guesser_id:str):
+        self.reset_variables()
+
         self.started = True
 
         self.executioner_id = executioner_id
@@ -187,7 +191,6 @@ def user_connect_handler(data:dict):
     hangman.users_connected = len(hangman.user_database)
     send_message(message = f"{data['username']} has joined the game! There are now {hangman.users_connected}/2 users in the game.")
 
-
     # If there are more than two people, get the guesser and executioner.
     all_user_ids = list(hangman.user_database.keys())
     if len(all_user_ids) >= 2: hangman.start_game(executioner_id = all_user_ids[0], guesser_id = all_user_ids[1])
@@ -195,14 +198,8 @@ def user_connect_handler(data:dict):
     log(text_to_log = f"{flask.request.sid}: {data['username']} joined | Database: {hangman.user_database} | {get_current_time()}")
 
 # User disconnection handler
-@socket_io.on("disconnect")
-def user_disconnection_handler():
-    # Get username
-    try: username = hangman.user_database[flask.request.sid]
-    # Username wasn't in database, so just exit
-    except KeyError: return
-
-    del hangman.user_database[flask.request.sid]
+def user_disconnection_handler(user_id:str, username:str):
+    del hangman.user_database[user_id]
     hangman.users_connected = len(hangman.user_database)
     send_message(message = f"{username} has left the game! There are now {hangman.users_connected}/2 users in this game.")
 
@@ -212,7 +209,27 @@ def user_disconnection_handler():
         # Reset variables
         hangman.reset_variables()
 
-    log(text_to_log = f"{flask.request.sid}: {username} left | Database: {hangman.user_database} | {get_current_time()}")
+    log(text_to_log = f"{user_id}: {username} left | Database: {hangman.user_database} | {get_current_time()}")
+
+@socket_io.on("disconnect")
+def disconnection():
+    # Get username
+    try: username = hangman.user_database[flask.request.sid]
+    # Username wasn't in database, so just exit
+    except KeyError: return
+
+    # Call disconnection handler
+    user_disconnection_handler(user_id = flask.request.sid, username = username)
+
+@socket_io.on("client_disconnect") # Disconnect is reserved, so we call this when the client wants to disconnect.
+def client_disconnection():
+    # Call disconnection handler
+    try: user_disconnection_handler(user_id = flask.request.sid, username = hangman.user_database[flask.request.sid])
+    # Not in database, just pass
+    except KeyError: pass
+
+    # Redirect user
+    flask_socketio.emit("redirect", {"new_url": "/"}, room = flask.request.sid)
 
 # Chat
 

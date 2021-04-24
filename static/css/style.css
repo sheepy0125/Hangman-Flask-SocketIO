@@ -156,6 +156,13 @@ h1, h2, h3, h4, h5, p, li, a {
     transform: translateY(-15px);
 }
 
+/* Exit button */
+#exit_button {
+    position: initial;
+    width: 95%; 
+}
+
+
 /* Misc. */
 .overflow_scroll {
     overflow: scroll;
