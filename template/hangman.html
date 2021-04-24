@@ -42,6 +42,7 @@
         // Setup
         const socket = io("http://{{ ip_address }}:{{ port }}");
         const username = "{{ username }}";
+        const default_wrong_char = "{{ default_wrong_char }}";
         const acceptable_regex = /[a-z]/g;
         socket.heartbeatTimeout = 10000;
 
@@ -62,20 +63,27 @@
 
         // Game ended because of a disconnect
         socket.on("end_game_disconnect", function() {
-            parent_hangman_chat_html.innerHTML = `<h1 class = "center">The other player has left!</h1><form action = "/", method = "GET"><input type = "submit" class = "button" value = "Exit"></form>`;
-            socket.close();
+            main_hangman_area.innerHTML = `
+            <h1 class = "center">The other player has left!</h1>
+            `;
         });
 
         // Game over (out of guesses)
         socket.on("game_over_out_of_guesses", function(data) {
-            parent_hangman_chat_html.innerHTML = `<h1>The executioner won!</h1><h2>The word was ${data["word"]}</h2><form action = "/", method = "GET"><input type = "submit" class = "button" value = "Exit"></form>`;
-            socket.close();
+            main_hangman_area.innerHTML = `
+            <h1>The executioner won!</h1>
+            <h2>The word was ${data["word"]}</h2>
+            `;
+            ready_up_button_game_over();
         });
 
         // Game over (won)
         socket.on("game_over_guesser_won", function(data) {
-            parent_hangman_chat_html.innerHTML = `<h1>The guesser got the word!</h1><h2>The word was ${data["word"]}</h2><form action = "/", method = "GET"><input type = "submit" class = "button" value = "Exit"></form>`;
-            socket.close();
+            main_hangman_area.innerHTML = `
+            <h1>The guesser got the word!</h1>
+            <h2>The word was ${data["word"]}</h2>
+            `;
+            ready_up_button_game_over();
         });
 
         // Change status HTML
@@ -85,6 +93,22 @@
             // Change it
             status_html.innerHTML = new_html;
         }
+
+        // Ready up button for game over
+        function ready_up_button_game_over() {
+            main_hangman_area.innerHTML += `
+            <!-- Ready up button -->
+            <button type = "button" class = "button" id = "ready_up_button">Ready up (<span id = "players_ready_up_number">0</span>/2)</button>
+            `;
+            var ready_up_button_html = document.getElementById("ready_up_button");
+            ready_up_button_html.addEventListener("click", function() { socket.emit("ready_up"); });
+        }
+
+        // User readied up
+        socket.on("user_readied_up", function() {
+            var players_ready_up_number_html = document.getElementById("players_ready_up_number");
+            players_ready_up_number_html.innerHTML = "1";
+        });
 
         // Chat ===================================================================================
 
@@ -196,7 +220,7 @@
             word_status_censored_html = document.getElementById("word_status_censored");
             guesses_left_text_html = document.getElementById("guesses_left_text");
 
-            for (letter = 0; letter < word.length; letter++) { word_status_censored_html.innerHTML += "-"; }
+            for (letter = 0; letter < word.length; letter++) { word_status_censored_html.innerHTML += default_wrong_char; }
             censored_word = word_status_censored_html.innerHTML;
             guesses_left_text_html.innerHTML = "6";
         }

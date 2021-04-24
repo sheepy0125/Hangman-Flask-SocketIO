@@ -43,11 +43,17 @@ class Hangman:
         self.guesser_id = None
         self.game_word = None
         self.censored_game_word = None
-        self.guessed_letters = []
+        self.guessed_letters = set()
+        self.users_readied_up = set()
         self.user_database = {}
 
     # Start game
     def start_game(self, executioner_id:str, guesser_id:str):
+        # Reset variables
+        self.guessed_letters.clear()
+        self.users_readied_up.clear()
+        self.game_word = None
+        
         self.started = True
 
         self.executioner_id = executioner_id
@@ -68,7 +74,7 @@ class Hangman:
             return
 
         # Append it to guessed letters list
-        self.guessed_letters.append(letter_guessed)
+        self.guessed_letters.add(letter_guessed)
 
         # Check if the letter is in the word
         if letter_guessed in hangman.game_word:
@@ -80,11 +86,11 @@ class Hangman:
             # Iterate through each letter in the word
             for letter_word in hangman.game_word:
                 # Iterate through every guessed letter
-                for letter_guessed in hangman.guessed_letters:
+                for letter_guess in hangman.guessed_letters:
 
                     # Check if it is in the word
-                    if letter_guessed == letter_word: 
-                        censored_word += letter_guessed
+                    if letter_guess == letter_word: 
+                        censored_word += letter_guess
                         break
 
                 # Letters didn't match, so add the default.
@@ -246,6 +252,25 @@ def word_for_guesser(data:dict):
 @socket_io.on("guessed_letter")
 def guessed_letter(data:dict): hangman.guessed_letter(data = data)
 
+# Readied up
+@socket_io.on("ready_up")
+def ready_up():
+    # Check if the user already readied up
+    if hangman.user_database[flask.request.sid] in hangman.users_readied_up: return
+    
+    # User has not already readied up, add them to the set
+    hangman.users_readied_up.add(hangman.user_database[flask.request.sid])
+
+    # Check if both players have readied up
+    if len(hangman.users_readied_up) >= 2:
+        # Start game with switched roles
+        hangman.start_game(executioner_id = hangman.guesser_id, guesser_id = hangman.executioner_id)
+
+    # Hasn't started game yet, so update the button
+    else: flask_socketio.emit("user_readied_up", broadcast = True)
+
+    log(text_to_log = f"User {hangman.user_database[flask.request.sid]} has readied up! | {get_current_time()}")
+
 # =================================================================================================
 # Website navigation ==============================================================================
 # =================================================================================================
@@ -279,7 +304,7 @@ def hangman_web_page():
     if not check_username(username = username): return flask.redirect("/")
 
     # Didn't return means the username was good, send to the hangman page.
-    return flask.render_template("hangman.html", username = username, ip_address = IP_ADDRESS, port = PORT)
+    return flask.render_template("hangman.html", username = username, ip_address = IP_ADDRESS, port = PORT, default_wrong_char = DEFAULT_WRONG_CHAR)
 
 # Run
 if __name__ == "__main__":
