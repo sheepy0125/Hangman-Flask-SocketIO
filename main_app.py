@@ -24,7 +24,7 @@ main_app.config["SECRET_KEY"] = SECRET_KEY
 socket_io = flask_socketio.SocketIO(main_app)
 
 # =================================================================================================
-# Classes ========================================================================================
+# Classes =========================================================================================
 # =================================================================================================
 
 # Hangman class
@@ -138,7 +138,11 @@ class Hangman:
                 self.executioner_won()
 
         # Give back the censored word
-        socket_io.emit("letter_has_been_guessed", {"letter_guessed": letter_guessed, "censored_word": self.censored_game_word, "guesses_left": self.guesses_left, "correct": correct}, broadcast = True)
+        socket_io.emit(
+            "letter_has_been_guessed", 
+            {"letter_guessed": letter_guessed, "censored_word": self.censored_game_word, "guesses_left": self.guesses_left, "correct": correct}, 
+            broadcast = True
+        )
 
         log(text_to_log = f"A letter has been guessed! | Correct: {correct} | Data: {data} | {get_current_time()}")
 
@@ -168,9 +172,11 @@ def check_username(username:str):
     if len(username) == 0: flask.flash("Invalid username: too short.")
     # Full game
     elif hangman.users_connected >= 2: flask.flash("This game is full. Sorry!")
+    # Regex check
+    elif not username.isalnum(): flask.flash("Your username must be letters and numbers only.")    
 
     # Send to hangman game with username
-    else:    
+    else:
         try:
             # Make sure username is not already in database
             for username_db in hangman.user_database.values():
