@@ -205,7 +205,6 @@ def user_connect_handler(data:dict):
     if not check_username(username = data["username"]): 
         # Before we disconnect them, try to send them back to the main page
         socket_io.emit("redirect", {"new_url": "/"}, room = flask.request.sid)
-        return
 
     # Update variables
     hangman.user_database[flask.request.sid] = data["username"]

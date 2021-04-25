@@ -172,6 +172,8 @@
         // Hangman ================================================================================
         // ========================================================================================
 
+        // Setup
+
         // Setup HTML
         function setup_hangman_html() {
             main_hangman_area_html.innerHTML = `
@@ -262,27 +264,6 @@
             guesses_left_text_html.innerHTML = "6";
         }
 
-        // Guess letter
-        function guess_letter() {
-            // Reset status
-            change_status_html("");
-
-            // Get letter
-            var letter_to_guess = document.getElementById("letter_guess_input").value;
-            letter_to_guess = letter_to_guess.toLowerCase();
-
-            // Check if the letter to guess is good
-            // Blank check
-            if (letter_to_guess.length == 0) { change_status_html("<h4>The letter cannot be empty.</h4>"); }
-            // Too long check
-            else if (letter_to_guess.length > 1) { change_status_html("<h4>The letter cannot be more than one letter.</h4>"); }
-            // Regex check
-            else if (letter_to_guess.match(acceptable_regex) == null) { change_status_html("<h4>The letter must be a letter!</h4>"); }
-
-            // Everything is good
-            else { socket.emit("guessed_letter", {"letter_guessed": letter_to_guess}); }
-        }
-
         // Set up game
         function setup_hangman(word) {
             // Reset
@@ -315,6 +296,29 @@
             }
         }
 
+        // Guesses
+
+        // Guess letter
+        function guess_letter() {
+            // Reset status
+            change_status_html("");
+
+            // Get letter
+            var letter_to_guess = document.getElementById("letter_guess_input").value;
+            letter_to_guess = letter_to_guess.toLowerCase();
+
+            // Check if the letter to guess is good
+            // Blank check
+            if (letter_to_guess.length == 0) { change_status_html("<h4>The letter cannot be empty.</h4>"); }
+            // Too long check
+            else if (letter_to_guess.length > 1) { change_status_html("<h4>The letter cannot be more than one letter.</h4>"); }
+            // Regex check
+            else if (letter_to_guess.match(acceptable_regex) == null) { change_status_html("<h4>The letter must be a letter!</h4>"); }
+
+            // Everything is good
+            else { socket.emit("guessed_letter", {"letter_guessed": letter_to_guess}); }
+        }
+
         // Letter has been guessed
         socket.on("letter_has_been_guessed", function(data) {
             // Get data
@@ -343,6 +347,8 @@
         // Letter has already been guessed
         socket.on("letter_has_already_been_guessed", function() { change_status_html("<h4>This letter has already been guessed. Try again.</h4>"); });
 
+        // Word input
+
         // Send word to guesser
         function send_word_to_guesser() {
             // Get the word
@@ -363,6 +369,8 @@
                 socket.emit("word_for_guesser", {"word": word, "censored_word": word_status_censored_html.innerHTML} );
             }
         }
+
+        // Misc.
 
         // Update hangman image
         function change_hangman_image(guesses_left) {
