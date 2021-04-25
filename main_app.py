@@ -98,7 +98,6 @@ class Hangman:
             socket_io.emit("letter_has_already_been_guessed", room = self.guesser_id)
             return
 
-        # Append it to guessed letters list
         self.guessed_letters.add(letter_guessed)
 
         # Check if the letter is in the word
@@ -205,6 +204,7 @@ def user_connect_handler(data:dict):
     if not check_username(username = data["username"]): 
         # Before we disconnect them, try to send them back to the main page
         socket_io.emit("redirect", {"new_url": "/"}, room = flask.request.sid)
+        return
 
     # Update variables
     hangman.user_database[flask.request.sid] = data["username"]
@@ -285,16 +285,42 @@ def message_handler(message:str):
 # Word for guesser
 @socket_io.on("word_for_guesser")
 def word_for_guesser(data:dict):
-    # Put the word into the word
-    hangman.game_word = data["word"]
-    hangman.censored_game_word = data["censored_word"]
-    flask_socketio.emit("get_word", data, room = hangman.guesser_id)
+    # Get word
+    word = data["word"]
 
-    log(text_to_log = f"Sending word to guesser (id {hangman.guesser_id}) | Data: {data} | Database: {hangman.user_database} | {get_current_time()}")
+    # Empty check
+    if len(word) == 0: flask_socketio.emit("status_change", {"status": "<h4>The word cannot be empty.</h4>"}, room = hangman.executioner_id)
+    # Too long check
+    elif len(word) > 25: flask_socketio.emit("status_change", {"status": "<h4>The word cannot be more than 25 characters.</h4>"}, room = hangman.executioner_id)
+    # Not a word check (in that it isn't made of letters)
+    elif not word.isalpha(): flask_socketio.emit("status_change", {"status": "<h4>The word must be composed of only letters.</h4>"}, room = hangman.executioner_id)
+
+    # Checks passed
+    else:
+        hangman.game_word = word
+        hangman.censored_game_word = f"{DEFAULT_WRONG_CHAR}" * len(word)
+
+        flask_socketio.emit("word_passed", {"word": word}, room = hangman.executioner_id)
+        flask_socketio.emit("get_word", {"word": word, "censored_word": hangman.censored_game_word}, room = hangman.guesser_id)
+        flask_socketio.emit("setup_censored_word", {"censored_word": hangman.censored_game_word}, room = hangman.executioner_id)
+
+        log(text_to_log = f"Sending word to guesser (id {hangman.guesser_id}) | Data: {data} | Database: {hangman.user_database} | {get_current_time()}")
 
 # Guesser guessed a letter
 @socket_io.on("guessed_letter")
-def guessed_letter(data:dict): hangman.guessed_letter(data = data)
+def guessed_letter(data:dict):
+    # Get letter
+    letter_guessed = data["letter_guessed"]
+
+    # Empty check
+    if len(letter_guessed) == 0: flask_socketio.emit("status_change", {"status": "<h4>The letter cannot be empty.</h4>"}, room = hangman.guesser_id)
+    # Too long check
+    elif len(letter_guessed) > 1: flask_socketio.emit("status_change", {"status": "<h4>The letter cannot be more than one letter.</h4>"}, room = hangman.guesser_id)
+    # Not a letter check
+    elif not letter_guessed.isalpha(): flask_socketio.emit("status_change", {"status": "<h4>The letter must be an alphabetical letter.</h4>"}, room = hangman.guesser_id)
+
+    # Checks passed
+    else: hangman.guessed_letter(data = data)
 
 # Readied up
 @socket_io.on("ready_up")

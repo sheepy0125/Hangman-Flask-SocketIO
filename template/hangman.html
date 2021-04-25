@@ -116,6 +116,9 @@
             status_html.innerHTML = new_html;
         }
 
+        // Status change from server
+        socket.on("status_change", function(data) { change_status_html(`${data["status"]}`); });
+
         // Ready up button for game over
         function ready_up_button_game_over() {
             main_hangman_area_html.innerHTML += `
@@ -232,8 +235,9 @@
                 setup_hangman_html();
 
                 change_status_html(`<h3>Please wait for the other person to type the word.</h3>`);
+
                 // Once we get the word, setup hangman
-                socket.on("get_word", function(data) { setup_hangman(data["word"]) });
+                socket.on("get_word", function(data) { setup_hangman(data["word"]); setup_censored_word({"censored_word": data["censored_word"]}); });
             }
         });
 
@@ -258,11 +262,12 @@
             // Get initial censored word
             word_status_censored_html = document.getElementById("word_status_censored");
             guesses_left_text_html = document.getElementById("guesses_left_text");
-
-            for (var letter = 0; letter < word.length; letter++) { word_status_censored_html.innerHTML += default_wrong_char; }
-            censored_word = word_status_censored_html.innerHTML;
             guesses_left_text_html.innerHTML = "6";
         }
+
+        // Set up censored word
+        socket.on("setup_censored_word", function(data) { setup_censored_word(data); });
+        function setup_censored_word(data) { word_status_censored_html.innerHTML = `${data["censored_word"]}`; }
 
         // Set up game
         function setup_hangman(word) {
@@ -300,24 +305,9 @@
 
         // Guess letter
         function guess_letter() {
-            // Reset status
             change_status_html("");
-
-            // Get letter
-            var letter_to_guess = document.getElementById("letter_guess_input").value;
-            letter_to_guess = letter_to_guess.toLowerCase();
-
-            // Check if the letter to guess is good
-            // Blank check
-            if (letter_to_guess.length == 0) { change_status_html("<h4>The letter cannot be empty.</h4>"); }
-            // Too long check
-            else if (letter_to_guess.length > 1) { change_status_html("<h4>The letter cannot be more than one letter.</h4>"); }
-            // Regex check
-            else if (letter_to_guess.match(acceptable_regex) == null) { change_status_html("<h4>The letter must be a letter!</h4>"); }
-
-            // Everything is good
-            else { socket.emit("guessed_letter", {"letter_guessed": letter_to_guess}); }
-        }
+            socket.emit("guessed_letter", {"letter_guessed": (document.getElementById("letter_guess_input").value).toLowerCase()} );
+        }        
 
         // Letter has been guessed
         socket.on("letter_has_been_guessed", function(data) {
@@ -350,25 +340,13 @@
         // Word input
 
         // Send word to guesser
-        function send_word_to_guesser() {
-            // Get the word
-            const word = (document.getElementById("word_input").value).toLowerCase();
+        function send_word_to_guesser() { socket.emit("word_for_guesser", {"word": (document.getElementById("word_input").value).toLowerCase()} ); }
 
-            // Check if the word is acceptable
-            // Blank check
-            if (word.length == 0) { change_status_html("<h4>The word cannot be empty.</h4>"); }
-            // Regex check
-            else if ( (word.match(acceptable_regex) == null) || (word.match(acceptable_regex).length < word.length) ) { change_status_html("<h4>The word must be only letters!</h4>"); }
-
-            // Everything is good
-            else {
-                // Setup hangman HTML
-                setup_hangman_html();
-                setup_hangman(word);
-
-                socket.emit("word_for_guesser", {"word": word, "censored_word": word_status_censored_html.innerHTML} );
-            }
-        }
+        // Word input succeeded
+        socket.on("word_passed", function(data) {
+            setup_hangman_html();
+            setup_hangman(data["word"]);
+        });
 
         // Misc.
 
