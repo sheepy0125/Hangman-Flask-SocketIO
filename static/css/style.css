@@ -87,13 +87,14 @@ h1, h2, h3, h4, h5, p, li, a {
 
 .word_status {
     float: left;
-    transform: translateX(50%);
+    width: calc(515px / 2);
+    text-align: center;
 }
 
 .guess_status {
     float: right;
-    display: block;
-    transform: translateX(-50%);
+    width: calc(515px / 2);
+    text-align: center;
 }
 
 /* Chat area */
