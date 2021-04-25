@@ -132,6 +132,10 @@ h1, h2, h3, h4, h5, p, li, a {
     margin: 20px;
 }
 
+.widget:empty {
+    display: none;
+}
+
 .hangman_status {
     background-color: rgb(255, 180, 202);
     border-radius: 10px 10px 0px 0px;
@@ -154,14 +158,15 @@ h1, h2, h3, h4, h5, p, li, a {
     transform: translateX(205px);
 }
 
-#word_letter_input {
+#letter_input {
     width: 270px;
     height: 150px;
     transform: translate(205px, 160px);
 }
 
-#word_letter_input:empty {
-    display: none;
+.word_input {
+    width: 90%;
+    padding: 20px 0px;
 }
 
 #status {

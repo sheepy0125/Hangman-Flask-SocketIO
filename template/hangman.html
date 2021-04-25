@@ -8,10 +8,17 @@
 {% block body %}
 <div class = "content">
     <div id = "parent_hangman_chat_points">
-        <!-- Hangman area (left) -->
+        <!-- Points area (left) -->
+        <div class = "sub_content points_area">
+            <h1>Points</h1>
+            <!-- Points -->
+            <div id = "points"></div>
+        </div>
+
+        <!-- Hangman area (middle) -->
         <div class = "sub_content hangman_area" id = "main_hangman_area">
             <!-- Status -->
-            <div id = "status"></div>
+            <div id = "status"><h3>Please wait for another person to join to start the game.</h3></div>
         </div>
 
         <!-- Chat area (right) -->
@@ -26,13 +33,6 @@
             <div class = "overflow_scroll chat_messages" id = "chat_area"><div id = "chat"></div></div>
         </div>
 
-        <!-- Points area -->
-        <div class = "sub_content points_area">
-            <h1>Points</h1>
-            
-            <!-- Points -->
-            <div id = "points"></div>
-        </div>
     </div>
 
     <button type = "button" class = "button widget" id = "exit_button">Exit game</button>
@@ -178,7 +178,7 @@
                     <div id = "guessed_letters_parent" class = "widget"></div>
 
                     <!-- Word / letter input -->
-                    <div id = "word_letter_input" class = "widget"></div>
+                    <div id = "letter_input" class = "widget"></div>
 
                     <!-- Status -->
                     <div id = "status"></div>
@@ -191,31 +191,34 @@
             parent_hangman_chat_points_html = document.getElementById("parent_hangman_chat_points");
             play_area_html = document.getElementById("play_area");
             guessed_letter_lists_html = document.getElementById("guessed_letters_parent");
-            word_letter_input_html = document.getElementById("word_letter_input");
+            letter_input_html = document.getElementById("letter_input");
         }
 
         // Recieve role (game started)
         socket.on("recieve_role", function(data) {
-            // Setup hangman HTML
-            setup_hangman_html();
-
             // Get role (global)
             role = data["role"];
 
             // Executioner
             if (role == "executioner") {
                 // Add word input
-                word_letter_input_html.innerHTML = `
-                <label class = "center">Enter a word for the other player to guess<br><input type = "text" id = "word_input" maxlength = "25"></label><br>
-                <button type = "button" class = "button" id = "word_submit">Submit word</button>
+                main_hangman_area_html.innerHTML = `
+                <div class = "word_input widget">
+                    <label class = "center">Enter a word for the other player to guess<br><input type = "text" id = "word_input" maxlength = "25"></label><br>
+                    <button type = "button" class = "button" id = "word_submit">Submit word</button>
+                </div>
                 `;
 
                 var submit_word_button = document.getElementById("word_submit");
                 submit_word_button.addEventListener("click", send_word_to_guesser);
+
             }
 
             // Guesser
             else if (role == "guesser") {
+                // Setup hangman HTML
+                setup_hangman_html();
+
                 change_status_html(`<h3>Please wait for the other person to type the word.</h3>`);
                 // Once we get the word, setup hangman
                 socket.on("get_word", function(data) { setup_hangman(data["word"]) });
@@ -274,7 +277,7 @@
         function setup_hangman(word) {
             // Reset
             change_status_html("");
-            word_letter_input_html.innerHTML = ``
+            letter_input_html.innerHTML = ``
             change_hangman_image(6);
 
             setup_statuses(word);
@@ -288,7 +291,7 @@
             // If we are the guesser, then set up the guessing area
             if (role == "guesser") {
                 // Create letter input
-                word_letter_input_html.innerHTML = `
+                letter_input_html.innerHTML = `
                 <label class = "center">Guess a letter<br><input type = "text" id = "letter_guess_input" maxlength = "1"></label><br>
                 <button type = "button" class = "button" id = "letter_guess_submit">Guess letter</button>
                 `;
@@ -343,7 +346,10 @@
 
             // Everything is good
             else {
+                // Setup hangman HTML
+                setup_hangman_html();
                 setup_hangman(word);
+
                 socket.emit("word_for_guesser", {"word": word, "censored_word": word_status_censored_html.innerHTML} );
             }
         }
