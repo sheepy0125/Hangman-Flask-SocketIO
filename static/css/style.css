@@ -24,7 +24,7 @@ h1, h2, h3, h4, h5, p, li, a {
 /* Content */
 .content {
     margin: 0 auto;
-    width: 800px;
+    width: 1045px;
     background-color: pink;
     border-radius: 25px;
 }
@@ -46,6 +46,16 @@ h1, h2, h3, h4, h5, p, li, a {
     background-color: rgb(255, 180, 192);
 }
 
+/* Points area */
+.points_area {
+    height: 400px;
+    width: 240px;
+    margin-left: 20px;
+    margin-top: 20px;
+    float: left;
+    position: absolute;
+}
+
 /* Hangman area */
 .hangman_area {
     height: 400px;
@@ -53,6 +63,7 @@ h1, h2, h3, h4, h5, p, li, a {
     margin-left: 20px;
     margin-top: 20px;
     float: left;
+    transform: translateX(245px);
 }
 
 .hangman_status {
@@ -159,7 +170,8 @@ h1, h2, h3, h4, h5, p, li, a {
 /* Exit button */
 #exit_button {
     position: initial;
-    width: 95%; 
+    margin: 20px;
+    width: 1005px;
 }
 
 
@@ -172,6 +184,6 @@ h1, h2, h3, h4, h5, p, li, a {
 .flashes {
     margin: 0 auto;
     border-radius: 15px;
-    width: 800px;
+    width: 1005px;
     background-color: rgb(255, 180, 192);
 }

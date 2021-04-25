@@ -7,7 +7,7 @@
 
 {% block body %}
 <div class = "content">
-    <div id = "parent_hangman_chat">
+    <div id = "parent_hangman_chat_points">
         <!-- Hangman area (left) -->
         <div class = "sub_content hangman_area" id = "main_hangman_area">
             <!-- Status -->
@@ -23,7 +23,15 @@
             </div>
 
             <!-- Messages -->
-            <div class = "overflow_scroll chat_messages" id = "chat_area"><ul id = "chat_ul"></ul></div>
+            <div class = "overflow_scroll chat_messages" id = "chat_area"><div id = "chat"></div></div>
+        </div>
+
+        <!-- Points area -->
+        <div class = "sub_content points_area">
+            <h1>Points</h1>
+            
+            <!-- Points -->
+            <div id = "points"></div>
         </div>
     </div>
 
@@ -50,12 +58,13 @@
         socket.heartbeatTimeout = 10000;
 
         // HTML variables
-        const chat_html = document.getElementById("chat_ul");
+        const chat_html = document.getElementById("chat");
         const send_chat_html = document.getElementById("send_button");
         const chat_text_input_html = document.getElementById("message_input");
         const chat_area_html = document.getElementById("chat_area");
         const main_hangman_area_html = document.getElementById("main_hangman_area")
         const exit_button_html = document.getElementById("exit_button");
+        const points_html = document.getElementById("points")
 
         // Misc. ==================================================================================
 
@@ -117,6 +126,14 @@
             players_ready_up_number_html.innerHTML = "1";
         });
 
+        // Update points
+        socket.on("points_update", function(data) {
+            points_html.innerHTML = ``;
+            for (var username in data) {
+                points_html.innerHTML += `<p>${username}: ${data[username]} points</p>`;
+            }
+        });
+
         // Chat ===================================================================================
 
         send_chat_html.addEventListener("click", send_chat_message);
@@ -171,7 +188,7 @@
 
             // Setup HTML variables
             sub_main_hangman_area_html = document.getElementById("sub_main_hangman_area");
-            parent_hangman_chat_html = document.getElementById("parent_hangman_chat");
+            parent_hangman_chat_points_html = document.getElementById("parent_hangman_chat_points");
             play_area_html = document.getElementById("play_area");
             guessed_letter_lists_html = document.getElementById("guessed_letters_parent");
             word_letter_input_html = document.getElementById("word_letter_input");

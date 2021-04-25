@@ -45,7 +45,8 @@ class Hangman:
         self.censored_game_word = None
         self.guessed_letters = set()
         self.users_readied_up = set()
-        self.user_database = {}
+        self.user_database = {}         # ID: Username
+        self.user_points_database = {}  # Username: Points
 
     # Reset variables
     def reset_variables(self):
@@ -54,12 +55,31 @@ class Hangman:
         self.users_readied_up.clear()
         self.game_word = None
 
+    # Update points
+    def update_points(self): 
+        socket_io.emit("points_update", data = self.user_points_database)
+        log(text_to_log = f"Updating points!| Point database: {self.user_points_database} | {get_current_time()}")
+
+    # Guesser won game
+    def guesser_won(self):
+        socket_io.emit("game_over_guesser_won", data = {"word": hangman.game_word}, broadcast = True)
+        log(text_to_log = f"The guesser won! | {get_current_time()}")
+        self.user_points_database[self.user_database[self.guesser_id]] += 1
+        self.update_points()
+    
+    # Executioner won game
+    def executioner_won(self): 
+        socket_io.emit("game_over_out_of_guesses", data = {"word": self.game_word}, broadcast = True)
+        log(text_to_log = f"The guesser ran out of guesses! | {get_current_time()}")
+        self.user_points_database[self.user_database[self.executioner_id]] += 1
+        self.update_points()    
+
     # Start game
     def start_game(self, executioner_id:str, guesser_id:str):
+        self.update_points()
         self.reset_variables()
 
         self.started = True
-
         self.executioner_id = executioner_id
         self.guesser_id = guesser_id
 
@@ -69,6 +89,7 @@ class Hangman:
 
         log(text_to_log = f"Starting! | Database: {self.user_database} | {get_current_time()}")
 
+    # Guessed letter
     def guessed_letter(self, data:dict):
         letter_guessed = data["letter_guessed"]
 
@@ -81,16 +102,16 @@ class Hangman:
         self.guessed_letters.add(letter_guessed)
 
         # Check if the letter is in the word
-        if letter_guessed in hangman.game_word:
+        if letter_guessed in self.game_word:
             correct = True
 
             # Set censored word to empty
             censored_word = ""
 
             # Iterate through each letter in the word
-            for letter_word in hangman.game_word:
+            for letter_word in self.game_word:
                 # Iterate through every guessed letter
-                for letter_guess in hangman.guessed_letters:
+                for letter_guess in self.guessed_letters:
 
                     # Check if it is in the word
                     if letter_guess == letter_word: 
@@ -103,11 +124,8 @@ class Hangman:
             self.censored_game_word = censored_word
         
             # Check if the word has been guessed (censored word is correct)
-            if self.game_word == censored_word:
-                # Emit game won
-                socket_io.emit("game_over_guesser_won", data = {"word": hangman.game_word}, broadcast = True)
-
-                log(text_to_log = f"The guesser won! | {get_current_time()}")
+            if self.game_word == censored_word: 
+                self.guesser_won()
                 return
 
         # Letter wasn't in word
@@ -117,14 +135,10 @@ class Hangman:
 
             # Check if game over
             if self.guesses_left <= 0:
-                # Emit game over
-                socket_io.emit("game_over_out_of_guesses", data = {"word": hangman.game_word}, broadcast = True)
-
-                log(text_to_log = f"The guesser ran out of guesses! | {get_current_time()}")
-                return
+                self.executioner_won()
 
         # Give back the censored word
-        socket_io.emit("letter_has_been_guessed", {"letter_guessed": letter_guessed, "censored_word": hangman.censored_game_word, "guesses_left": hangman.guesses_left, "correct": correct}, broadcast = True)
+        socket_io.emit("letter_has_been_guessed", {"letter_guessed": letter_guessed, "censored_word": self.censored_game_word, "guesses_left": self.guesses_left, "correct": correct}, broadcast = True)
 
         log(text_to_log = f"A letter has been guessed! | Correct: {correct} | Data: {data} | {get_current_time()}")
 
@@ -187,8 +201,12 @@ def user_connect_handler(data:dict):
         socket_io.emit("redirect", {"new_url": "/"}, room = flask.request.sid)
         return
 
+    # Update variables
     hangman.user_database[flask.request.sid] = data["username"]
     hangman.users_connected = len(hangman.user_database)
+    hangman.user_points_database[data["username"]] = 0
+    hangman.update_points()
+
     send_message(message = f"{data['username']} has joined the game! There are now {hangman.users_connected}/2 users in the game.")
 
     # If there are more than two people, get the guesser and executioner.
@@ -199,8 +217,12 @@ def user_connect_handler(data:dict):
 
 # User disconnection handler
 def user_disconnection_handler(user_id:str, username:str):
+    # Update variables
     del hangman.user_database[user_id]
     hangman.users_connected = len(hangman.user_database)
+    del hangman.user_points_database[username]
+    hangman.update_points()
+
     send_message(message = f"{username} has left the game! There are now {hangman.users_connected}/2 users in this game.")
 
     # If there is a disconnect while the game has started, end the game.
