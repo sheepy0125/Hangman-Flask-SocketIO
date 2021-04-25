@@ -35,25 +35,25 @@ class Hangman:
 
     # Set up variables
     def setup_variables(self):
-        self.users_connected = 0
-        self.messages_sent = 0
-        self.guesses_left = 6
-        self.started = False
-        self.executioner_id = None
-        self.guesser_id = None
-        self.game_word = None
-        self.censored_game_word = None
-        self.guessed_letters = set()
-        self.users_readied_up = set()
-        self.user_database = {}         # ID: Username
-        self.user_points_database = {}  # Username: Points
+        self.users_connected:int = 0
+        self.messages_sent:int = 0
+        self.guesses_left:int = 6
+        self.started:bool = False
+        self.executioner_id:str = ""
+        self.guesser_id:str = ""
+        self.game_word:str = ""
+        self.censored_game_word:str = ""
+        self.guessed_letters:set = set()
+        self.users_readied_up:set = set()
+        self.user_database:dict = {}        # ID: Username
+        self.user_points_database:dict = {} # Username: Points
 
     # Reset variables
     def reset_variables(self):
         self.guesses_left = 6
         self.guessed_letters.clear()
         self.users_readied_up.clear()
-        self.game_word = None
+        self.game_word = ""
 
     # Update points
     def update_points(self): 

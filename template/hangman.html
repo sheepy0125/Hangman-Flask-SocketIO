@@ -50,7 +50,11 @@
         So, it'd be nice if you leave.
         Thanks! -Sheepy        
         `);
-        // Setup
+
+        // ========================================================================================
+        // Setup ==================================================================================
+        // ========================================================================================
+
         const socket = io("http://{{ ip_address }}:{{ port }}");
         const username = "{{ username }}";
         const default_wrong_char = "{{ default_wrong_char }}";
@@ -66,7 +70,9 @@
         const exit_button_html = document.getElementById("exit_button");
         const points_html = document.getElementById("points")
 
+        // ========================================================================================
         // Misc. ==================================================================================
+        // ========================================================================================
 
         // Redirect
         socket.on("redirect", function(data) { window.location = data["new_url"]; });
@@ -134,7 +140,9 @@
             }
         });
 
+        // ========================================================================================
         // Chat ===================================================================================
+        // ========================================================================================
 
         send_chat_html.addEventListener("click", send_chat_message);
         // If user presses enter in chat box, click send button
@@ -160,7 +168,9 @@
             }
         }
 
+        // ========================================================================================
         // Hangman ================================================================================
+        // ========================================================================================
 
         // Setup HTML
         function setup_hangman_html() {
@@ -247,7 +257,7 @@
             word_status_censored_html = document.getElementById("word_status_censored");
             guesses_left_text_html = document.getElementById("guesses_left_text");
 
-            for (letter = 0; letter < word.length; letter++) { word_status_censored_html.innerHTML += default_wrong_char; }
+            for (var letter = 0; letter < word.length; letter++) { word_status_censored_html.innerHTML += default_wrong_char; }
             censored_word = word_status_censored_html.innerHTML;
             guesses_left_text_html.innerHTML = "6";
         }
