@@ -11,8 +11,15 @@
     <h1>Joining hangman game</h1>
     <form class = "sub_content center" action = "/hangman", method = "POST">
         <label class = "center">Username<br><input type = "text" name = "username_input"></label><br>
-        <input type = "submit" class = "button" value = "Join">
-        <br>
+        
+        <p>Hangman room</p>
+        <div class = "multiple_selection">
+            {% for room in rooms %}
+                <label class = "center"><input type = "radio" name = "room_selection" value = "{{ room }}" required>{{ room }}</label>
+            {% endfor %}
+        </div> <br>
+        
+        <input type = "submit" class = "button" value = "Join"> <br>
     </form>
     <br>
 {% endblock %}
