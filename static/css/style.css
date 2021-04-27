@@ -185,11 +185,12 @@ h1, h2, h3, h4, h5, p, li, a {
 .overflow_scroll {
     overflow: scroll;
     overflow-x: initial;
+    overflow-wrap: break-word;
 }
 
 .flashes {
     margin: 0 auto;
     border-radius: 15px;
-    width: 1005px;
+    width: 1045px;
     background-color: rgb(255, 180, 192);
 }

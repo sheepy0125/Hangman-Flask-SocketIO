@@ -95,7 +95,7 @@ class Hangman:
 
         # Check if it has already been guessed
         if letter_guessed in self.guessed_letters:
-            socket_io.emit("letter_has_already_been_guessed", room = self.guesser_id)
+            socket_io.emit("letter_has_already_been_guessed", room = self.guesser_id, namespace = namespace)
             return
 
         self.guessed_letters.add(letter_guessed)
