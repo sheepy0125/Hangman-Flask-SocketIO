@@ -39,321 +39,278 @@
 
     <!-- Socket IO JavaScript library --> 
     <script type = "text/javascript" src = "/static/js/socket-io.js"></script>
+    <!-- JQuery JavaScript library -->
+    <script type = "text/javascript" src = "/static/js/j-query.js"></script>
 
     <!-- Main JavaScript -->
     <script>
-        // ========================================================================================
-        // Setup ==================================================================================
-        // ========================================================================================
+        $(document).ready(function() {
+            // ========================================================================================
+            // Setup ==================================================================================
+            // ========================================================================================
 
-        const socket = io("http://{{ ip_address }}:{{ port }}/{{ room_name }}");
-        const username = "{{ username }}";
-        const default_wrong_char = "{{ default_wrong_char }}";
-        const acceptable_regex = /[a-z]/g;
-        socket.heartbeatTimeout = 10000;
+            const socket = io("http://{{ ip_address }}:{{ port }}/{{ room_name }}");
+            const username = "{{ username }}";
+            socket.heartbeatTimeout = 10000;
 
-        // HTML variables
-        const chat_html = document.getElementById("chat");
-        const send_chat_html = document.getElementById("send_button");
-        const chat_text_input_html = document.getElementById("message_input");
-        const chat_area_html = document.getElementById("chat_area");
-        const main_hangman_area_html = document.getElementById("main_hangman_area")
-        const exit_button_html = document.getElementById("exit_button");
-        const points_html = document.getElementById("points")
+            // ========================================================================================
+            // Misc. ==================================================================================
+            // ========================================================================================
 
-        // ========================================================================================
-        // Misc. ==================================================================================
-        // ========================================================================================
-
-        // Redirect
-        socket.on("redirect", function(data) { window.location = data["new_url"]; });
-
-        // Connect
-        socket.on("connect", function() { socket.emit("user_connection", {"username": username} ); });
-
-        // Disconnect (button)
-        exit_button_html.addEventListener("click", function () { socket.emit("client_disconnect"); });
-
-        // Game ended because of a disconnect
-        socket.on("end_game_disconnect", function() {
-            main_hangman_area_html.innerHTML = `
-            <h1 class = "center">The other player has left!</h1>
-            `;
-        });
-
-        // Game over (out of guesses)
-        socket.on("game_over_out_of_guesses", function(data) {
-            main_hangman_area_html.innerHTML = `
-            <h1>The executioner won!</h1>
-            <h2>The word was ${data["word"]}</h2>
-            `;
-            ready_up_button_game_over();
-        });
-
-        // Game over (won)
-        socket.on("game_over_guesser_won", function(data) {
-            main_hangman_area_html.innerHTML = `
-            <h1>The guesser got the word!</h1>
-            <h2>The word was ${data["word"]}</h2>
-            `;
-            ready_up_button_game_over();
-        });
-
-        // Change status HTML
-        function change_status_html(new_html) {
-            // Get status
-            var status_html = document.getElementById("status");
-            // Change it
-            status_html.innerHTML = new_html;
-        }
-
-        // Status change from server
-        socket.on("status_change", function(data) { change_status_html(`${data["status"]}`); });
-
-        // Ready up button for game over
-        function ready_up_button_game_over() {
-            main_hangman_area_html.innerHTML += `
-            <!-- Ready up button -->
-            <button type = "button" class = "button" id = "ready_up_button">Ready up (<span id = "players_ready_up_number">0</span>/2)</button>
-            `;
-            var ready_up_button_html = document.getElementById("ready_up_button");
-            ready_up_button_html.addEventListener("click", function() { socket.emit("ready_up"); });
-        }
-
-        // User readied up
-        socket.on("user_readied_up", function() {
-            var players_ready_up_number_html = document.getElementById("players_ready_up_number");
-            players_ready_up_number_html.innerHTML = "1";
-        });
-
-        // Update points
-        socket.on("points_update", function(data) {
-            points_html.innerHTML = ``;
-            for (var username in data) {
-                points_html.innerHTML += `<p>${username}: ${data[username]} points</p>`;
-            }
-        });
-
-        // ========================================================================================
-        // Chat ===================================================================================
-        // ========================================================================================
-
-        send_chat_html.addEventListener("click", send_chat_message);
-        // If user presses enter in chat box, click send button
-        chat_text_input_html.addEventListener("keyup", function(event) { 
-            // Check if keycode is enter (13)
-            if (event.keyCode == 13) { send_chat_html.click(); }
-        }); 
-
-        // Chat message sent from server
-        socket.on("message", function(message) {
-            chat_html.innerHTML += `<p class = .chat_message>${message}</p>`;
-            // Auto scroll chat area
-            chat_area_html.scrollTop = chat_area_html.scrollHeight;
-        });
-
-        // Send chat message
-        function send_chat_message() { 
-            // Make sure message is not nothing
-            if (chat_text_input_html.value != "") {
-                socket.emit("send_message", {"message": chat_text_input_html.value}); 
-                // Reset the message input
-                chat_text_input_html.value = "";
-            }
-        }
-
-        // ========================================================================================
-        // Hangman ================================================================================
-        // ========================================================================================
-
-        // Setup
-
-        // Setup HTML
-        function setup_hangman_html() {
-            main_hangman_area_html.innerHTML = `
-            <!-- Guess area -->
-            <div id = "sub_main_hangman_area"></div>
-
-            <div id = "parent_image_play_area">
-                <!-- Hangman image -->
-                <div id = "hangman_image_area" class = "widget"></div>
-
-                <!-- Play area -->
-                <div id = "play_area">
-                    <!-- Guessed letter lists -->
-                    <div id = "guessed_letters_parent" class = "widget"></div>
-
-                    <!-- Word / letter input -->
-                    <div id = "letter_input" class = "widget"></div>
-
-                    <!-- Status -->
-                    <div id = "status"></div>
-                </div>
-            </div>
-            `;
-
-            // Setup HTML variables
-            sub_main_hangman_area_html = document.getElementById("sub_main_hangman_area");
-            parent_hangman_chat_points_html = document.getElementById("parent_hangman_chat_points");
-            play_area_html = document.getElementById("play_area");
-            guessed_letter_lists_html = document.getElementById("guessed_letters_parent");
-            letter_input_html = document.getElementById("letter_input");
-        }
-
-        // Recieve role (game started)
-        socket.on("recieve_role", function(data) {
-            // Get role (global)
-            role = data["role"];
-
-            // Executioner
-            if (role == "executioner") {
-                // Add word input
-                main_hangman_area_html.innerHTML = `
-                <div class = "word_input widget">
-                    <label class = "center">Enter a word for the other player to guess<br><input type = "text" id = "word_input" maxlength = "25"></label><br>
-                    <button type = "button" class = "button" id = "word_submit">Submit word</button>
-                </div> <div id = "status"></div>
-                `;
-
-                var submit_word_button = document.getElementById("word_submit");
-                submit_word_button.addEventListener("click", send_word_to_guesser);
-
+            // Check if key was etner
+            function check_key_enter(event) {
+                if (event.which == 13) { return true; }
+                else { return false; }
             }
 
-            // Guesser
-            else if (role == "guesser") {
-                // Setup hangman HTML
-                setup_hangman_html();
+            // Redirect
+            socket.on("redirect", function(data) { window.location = data.new_url; });
 
-                change_status_html(`<h3>Please wait for the other person to type the word.</h3>`);
+            // Connect
+            socket.on("connect", function() { socket.emit("user_connection", {"username": username} ); });
 
-                // Once we get the word, setup hangman
-                socket.on("get_word", function(data) { setup_hangman(data["word"]); setup_censored_word({"censored_word": data["censored_word"]}); });
+            // Disconnect (button)
+            $("#exit_button").click(function() { socket.emit("client_disconnect"); });
+
+            // Game ended because of a disconnect
+            socket.on("end_game_disconnect", function() {
+                $("#main_hangman_area").html(`<h1 class = "center">The other player has left!</h1>`);
+            });
+
+            // Game over (out of guesses)
+            socket.on("game_over_out_of_guesses", function(data) {
+                $("#main_hangman_area").html(`
+                <h1>The executioner won!</h1>
+                <h2>The word was ${data.word}</h2>
+                `);
+                ready_up_button_game_over();
+            });
+
+            // Game over (won)
+            socket.on("game_over_guesser_won", function(data) {
+                $("#main_hangman_area").html(`
+                <h1>The guesser got the word!</h1>
+                <h2>The word was ${data.word}</h2>
+                `);
+                ready_up_button_game_over();
+            });
+
+            // Change status HTML
+            function change_status_html(new_html) { $("#status").html(new_html); }
+
+            // Status change from server
+            socket.on("status_change", function(data) { change_status_html(data.status); });
+
+            // Ready up button for game over
+            function ready_up_button_game_over() {
+                $("#main_hangman_area").append(`
+                <!-- Ready up button -->
+                <button type = "button" class = "button" id = "ready_up_button">Ready up (<span id = "players_ready_up_number">0</span>/2)</button>
+                `);
+                $("#ready_up_button").click(function() { socket.emit("ready_up"); });
             }
-        });
 
-        // Set up statuses
-        function setup_statuses(word) {
-            sub_main_hangman_area_html.innerHTML = `
-            <!-- Status -->
-            <div class = "hangman_status">
-                <hr class = "horizontal_line_hangman_status">
-                <div class = "vertical_line_hangman_status"></div>
-                <!-- Word status -->
-                <div class = "word_status">
-                    <h3>Word: "<span id = "word_status_censored"></span>"</h3>
-                </div>
-                <!-- Guesses left -->
-                <div class = "guess_status">
-                    <h3>Guesses left: <span id = "guesses_left_text"></span></h3>
-                </div>
-            </div>
-            `;
+            // User readied up
+            socket.on("user_readied_up", function() { $("#players_ready_up_number").html("1"); });
 
-            // Get initial censored word
-            word_status_censored_html = document.getElementById("word_status_censored");
-            guesses_left_text_html = document.getElementById("guesses_left_text");
-            guesses_left_text_html.innerHTML = "6";
-        }
+            // Update points
+            socket.on("points_update", function(data) {
+                $("#points").html("");
+                for (var username in data) { $("#points").append(`<p>${username}: ${data[username]} points</p>`); }
+            });
 
-        // Set up censored word
-        socket.on("setup_censored_word", function(data) { setup_censored_word(data); });
-        function setup_censored_word(data) { word_status_censored_html.innerHTML = `${data["censored_word"]}`; }
+            // ========================================================================================
+            // Chat ===================================================================================
+            // ========================================================================================
 
-        // Set up game
-        function setup_hangman(word) {
-            // Reset
-            change_status_html("");
-            letter_input_html.innerHTML = ``
-            change_hangman_image(6);
+            $("#send_button").click(send_chat_message);
 
-            setup_statuses(word);
+            // If user presses enter in chat box, click send button
+            $("#message_input").keyup(function(event) { 
+                if (check_key_enter(event)) { $("#send_button").click(); }
+            }); 
 
-            // Create the already selected word list
-            guessed_letter_lists_html.innerHTML = `
-            <p>Incorrect guesses: <strong><span id = "guessed_letters_incorrect"></span></strong></p>
-            <p>Correct guesses: <strong><span id = "guessed_letters_correct"></span></strong></p>
-            `;
+            // Chat message sent from server
+            socket.on("message", function(message) {
+                $("#chat").append(`<p class = .chat_message>${message}</p>`);
+                // Auto scroll chat area
+                $("#chat").scrollTop = $("#chat").scrollHeight;
+            });
 
-            // If we are the guesser, then set up the guessing area
-            if (role == "guesser") {
-                // Create letter input
-                letter_input_html.innerHTML = `
-                <label class = "center">Guess a letter<br><input type = "text" id = "letter_guess_input" maxlength = "1"></label><br>
-                <button type = "button" class = "button" id = "letter_guess_submit">Guess letter</button>
-                `;
-                var letter_guess_submit_html = document.getElementById("letter_guess_submit");
-                var letter_guess_input_html = document.getElementById("letter_guess_input");
-                letter_guess_submit_html.addEventListener("click", guess_letter);
-                // If user presses enter in box, click send button
-                letter_guess_input_html.addEventListener("keyup", function(event) { 
-                    if (event.keyCode == 13) { letter_guess_submit_html.click(); letter_guess_input_html.value = ``; } 
-                }); 
-            }
-        }
-
-        // Guesses
-
-        // Guess letter
-        function guess_letter() {
-            change_status_html("");
-            socket.emit("guessed_letter", {"letter_guessed": (document.getElementById("letter_guess_input").value).toLowerCase()} );
-        }        
-
-        // Letter has been guessed
-        socket.on("letter_has_been_guessed", function(data) {
-            // Get data
-            var letter_guessed = data["letter_guessed"];
-            var censored_word = data["censored_word"];
-            var guesses_left = data["guesses_left"];
-            var correct = data["correct"];
-
-            // Get HTML locations to update
-            var incorrect_guessed_letters_html = document.getElementById("guessed_letters_incorrect");
-            var correct_guessed_letters_html = document.getElementById("guessed_letters_correct");
-
-            // Update word
-            word_status_censored_html.innerHTML = `${censored_word}`;
-            guesses_left_text_html.innerHTML = `${guesses_left}`;
-
-            // Put the letter guessed into the proper place
-            try {
-                if (correct == true) { correct_guessed_letters_html.innerHTML += `${letter_guessed}`; }
-                else { 
-                    incorrect_guessed_letters_html.innerHTML += `${letter_guessed}`;
-                    // Update image
-                    change_hangman_image(guesses_left);
+            // Send chat message
+            function send_chat_message() { 
+                // Make sure message is not nothing
+                if ($("#message_input").val() != "") {
+                    socket.emit("send_message", {"message":  $("#message_input").val()}); 
+                    // Reset the message input
+                    $("#message_input").val("");
                 }
-            } catch (error) {
-                console.error("Error occured when updating word lists. If this happened at the end of the game, ignore it.");
+            }
+
+            // ========================================================================================
+            // Hangman ================================================================================
+            // ========================================================================================
+
+            // Setup
+
+            // Setup HTML
+            function setup_hangman_html() {
+                $("#main_hangman_area").html(`
+                <!-- Guess area -->
+                <div id = "sub_main_hangman_area"></div>
+
+                <div id = "parent_image_play_area">
+                    <!-- Hangman image -->
+                    <div id = "hangman_image_area" class = "widget"></div>
+
+                    <!-- Play area -->
+                    <div id = "play_area">
+                        <!-- Guessed letter lists -->
+                        <div id = "guessed_letters_parent" class = "widget"></div>
+
+                        <!-- Word / letter input -->
+                        <div id = "letter_input" class = "widget"></div>
+
+                        <!-- Status -->
+                        <div id = "status"></div>
+                    </div>
+                </div>
+                `);
+            }
+
+            // Recieve role (game started)
+            socket.on("recieve_role", function(data) {
+                // Get role (global)
+                role = data.role;
+
+                // Executioner
+                if (role == "executioner") {
+                    // Add word input
+                    $("#main_hangman_area").html(`
+                    <div class = "word_input widget">
+                        <label class = "center">Enter a word for the other player to guess<br><input type = "text" id = "word_input" maxlength = "25"></label><br>
+                        <button type = "button" class = "button" id = "word_submit">Submit word</button>
+                    </div> <div id = "status"></div>
+                    `);
+                    $("#word_submit").click(send_word_to_guesser);
+                }
+
+                // Guesser
+                else if (role == "guesser") {
+                    setup_hangman_html();
+                    change_status_html("<h3>Please wait for the other person to type the word.</h3>");
+
+                    // Once we get the word, setup hangman
+                    socket.on("get_word", function(data) { setup_hangman(data.word); setup_censored_word({"censored_word": data.censored_word}); });
+                }
+            });
+
+            // Set up statuses
+            function setup_statuses(word) {
+                $("#sub_main_hangman_area").html(`
+                <!-- Status -->
+                <div class = "hangman_status">
+                    <hr class = "horizontal_line_hangman_status">
+                    <div class = "vertical_line_hangman_status"></div>
+                    <!-- Word status -->
+                    <div class = "word_status">
+                        <h3>Word: "<span id = "word_status_censored"></span>"</h3>
+                    </div>
+                    <!-- Guesses left -->
+                    <div class = "guess_status">
+                        <h3>Guesses left: <span id = "guesses_left_text"></span></h3>
+                    </div>
+                </div>
+                `);
+                $("#guesses_left_text").html("6");
+            }
+
+            // Set up censored word
+            socket.on("setup_censored_word", function(data) { setup_censored_word(data); });
+            function setup_censored_word(data) { $("#word_status_censored").html(data.censored_word); }
+
+            // Set up game
+            function setup_hangman(word) {
+                // Reset
+                change_status_html("");
+                change_hangman_image(6);
+                $("#letter_input").html("");
+                setup_statuses(word);
+
+                // Create the already selected word list
+                $("#guessed_letters_parent").html(`
+                <p>Incorrect guesses: <strong><span id = "guessed_letters_incorrect"></span></strong></p>
+                <p>Correct guesses: <strong><span id = "guessed_letters_correct"></span></strong></p>
+                `);
+
+                // If we are the guesser, then set up the guessing area
+                if (role == "guesser") {
+                    // Create letter input
+                    $("#letter_input").html(`
+                    <label class = "center">Guess a letter<br><input type = "text" id = "letter_guess_input" maxlength = "1"></label><br>
+                    <button type = "button" class = "button" id = "letter_guess_submit">Guess letter</button>
+                    `);
+                    $("#letter_guess_submit").click(guess_letter);
+
+                    // If user presses enter in box, click send button
+                    $("#letter_guess_input").keyup(function(event) { 
+                        if (check_key_enter(event)) { $("#letter_guess_submit").click(); $("#letter_guess_input").val(""); } 
+                    }); 
+                }
+            }
+
+            // Guesses
+
+            // Guess letter
+            function guess_letter() {
+                change_status_html("");
+                socket.emit("guessed_letter", {"letter_guessed": ($("#letter_guess_input").val()).toLowerCase()} );
+            }        
+
+            // Letter has been guessed
+            socket.on("letter_has_been_guessed", function(data) {
+                // Get data
+                var letter_guessed = data.letter_guessed;
+                var censored_word = data.censored_word;
+                var guesses_left = data.guesses_left;
+                var correct = data.correct;
+
+                // Update word
+                $("#word_status_censored").html(censored_word);
+                $("#guesses_left_text").html(guesses_left);
+
+                // Put the letter guessed into the proper place
+                try {
+                    if (correct == true) { $("#guessed_letters_correct").append(letter_guessed); }
+                    else { 
+                        $("#guessed_letters_incorrect").append(letter_guessed);
+                        change_hangman_image(guesses_left);
+                    }
+                } catch (error) {
+                    console.error("Error occured when updating word lists. If this happened at the end of the game, ignore it.");
+                }
+            });
+
+            // Letter has already been guessed
+            socket.on("letter_has_already_been_guessed", function() { change_status_html("<h4>This letter has already been guessed. Try again.</h4>"); });
+
+            // Word input
+
+            // Send word to guesser
+            function send_word_to_guesser() { socket.emit("word_for_guesser", {"word": ($("#word_input").val()).toLowerCase()} ); }
+
+            // Word input succeeded
+            socket.on("word_passed", function(data) {
+                setup_hangman_html();
+                setup_hangman(data.word);
+            });
+
+            // Misc.
+
+            // Update hangman image
+            function change_hangman_image(guesses_left) {
+                $("#hangman_image_area").html(`<image class = "center" src = "/static/images/${guesses_left}_guesses.png" alt = "Hangman image - ${guesses_left} guesses left">`);
             }
         });
-
-        // Letter has already been guessed
-        socket.on("letter_has_already_been_guessed", function() { change_status_html("<h4>This letter has already been guessed. Try again.</h4>"); });
-
-        // Word input
-
-        // Send word to guesser
-        function send_word_to_guesser() { socket.emit("word_for_guesser", {"word": (document.getElementById("word_input").value).toLowerCase()} ); }
-
-        // Word input succeeded
-        socket.on("word_passed", function(data) {
-            setup_hangman_html();
-            setup_hangman(data["word"]);
-        });
-
-        // Misc.
-
-        // Update hangman image
-        function change_hangman_image(guesses_left) {
-            // Get the hangman image HTML
-            const hangman_image_area_html = document.getElementById("hangman_image_area");
-
-            // Update it
-            hangman_image_area_html.innerHTML = `
-            <image class = "center" src = "/static/images/${guesses_left}_guesses.png" alt = "Hangman image - ${guesses_left} guesses left">
-            `;
-        }
     </script>
 {% endblock %}

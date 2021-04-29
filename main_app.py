@@ -56,23 +56,23 @@ class Hangman:
         self.game_word = ""
 
     # Update points
-    def update_points(self, namespace:str): 
-        socket_io.emit("points_update", data = self.user_points_database)
-        log(text_to_log = f"Updating points!| Point database: {self.user_points_database} | {get_current_time()}")
+    def update_points(self, namespace:str): socket_io.emit("points_update", data = self.user_points_database, namespace = namespace)
 
     # Guesser won game
     def guesser_won(self, namespace:str):
         socket_io.emit("game_over_guesser_won", data = {"word": self.game_word}, broadcast = True, namespace = namespace)
-        log(text_to_log = f"The guesser won! | {get_current_time()}")
         self.user_points_database[self.user_database[self.guesser_id]] += 1
         self.update_points(namespace = namespace)
+
+        log(text_to_log = f"The guesser won! | {get_current_time()}")
     
     # Executioner won game
     def executioner_won(self, namespace:str): 
         socket_io.emit("game_over_out_of_guesses", data = {"word": self.game_word}, broadcast = True, namespace = namespace)
-        log(text_to_log = f"The guesser ran out of guesses! | {get_current_time()}")
         self.user_points_database[self.user_database[self.executioner_id]] += 1
         self.update_points(namespace = namespace)    
+
+        log(text_to_log = f"The guesser ran out of guesses! | {get_current_time()}")
 
     # Start game
     def start_game(self, executioner_id:str, guesser_id:str, namespace:str):
@@ -103,26 +103,20 @@ class Hangman:
         # Check if the letter is in the word
         if letter_guessed in self.game_word:
             correct = True
-
-            # Set censored word to empty
             censored_word = ""
 
-            # Iterate through each letter in the word
             for letter_word in self.game_word:
-                # Iterate through every guessed letter
                 for letter_guess in self.guessed_letters:
-
                     # Check if it is in the word
                     if letter_guess == letter_word: 
                         censored_word += letter_guess
                         break
 
-                # Letters didn't match, so add the default.
+                # Letters guessed didn't match
                 else: censored_word += DEFAULT_WRONG_CHAR
-
             self.censored_game_word = censored_word
         
-            # Check if the word has been guessed (censored word is correct)
+            # Check if word guessed
             if self.game_word == censored_word: 
                 self.guesser_won(namespace = namespace)
                 return
@@ -135,6 +129,7 @@ class Hangman:
             # Check if game over
             if self.guesses_left <= 0:
                 self.executioner_won(namespace = namespace)
+                return
 
         # Give back the censored word
         socket_io.emit(
@@ -148,7 +143,6 @@ class Hangman:
 
 # All hangman rooms (important for keeping track of stuff)
 class AllHangmanRooms: room_dicts:dict = {}
-
 all_hangman_rooms = AllHangmanRooms()
 
 # Hangman room class
@@ -164,10 +158,8 @@ class HangmanRoom(flask_socketio.Namespace):
 
     # User connection handler
     def on_user_connection(self, data:dict):
-        # If the username check failed, close the connection. 
-        # This most likely happens when the back button is pressed.
+        # If the username check failed, send them back to join page.
         if not check_username(username = data["username"], namespace = self.namespace.lstrip("/")): 
-            # Before we disconnect them, try to send them back to the main page
             socket_io.emit("redirect", {"new_url": "/"}, room = flask.request.sid, namespace = self.namespace)
             return
 
@@ -250,11 +242,11 @@ class HangmanRoom(flask_socketio.Namespace):
         # Get word
         word = data["word"]
 
-        # Empty check
+        # Check if word is empty
         if len(word) == 0: flask_socketio.emit("status_change", {"status": "<h4>The word cannot be empty.</h4>"}, room = self.hangman.executioner_id)
-        # Too long check
+        # Check if word is too long (25 chars)
         elif len(word) > 25: flask_socketio.emit("status_change", {"status": "<h4>The word cannot be more than 25 characters.</h4>"}, room = self.hangman.executioner_id)
-        # Not a word check (in that it isn't made of letters)
+        # Check if word is not a word (not made of letters)
         elif not word.isalpha(): flask_socketio.emit("status_change", {"status": "<h4>The word must be composed of only letters.</h4>"}, room = self.hangman.executioner_id)
 
         # Checks passed
@@ -273,11 +265,13 @@ class HangmanRoom(flask_socketio.Namespace):
         # Get letter
         letter_guessed = data["letter_guessed"]
 
-        # Empty check
+        # Check if letter is empty
         if len(letter_guessed) == 0: flask_socketio.emit("status_change", {"status": "<h4>The letter cannot be empty.</h4>"}, room = self.hangman.guesser_id)
-        # Too long check
+
+        # Check if letter is longer than a letter
         elif len(letter_guessed) > 1: flask_socketio.emit("status_change", {"status": "<h4>The letter cannot be more than one letter.</h4>"}, room = self.hangman.guesser_id)
-        # Not a letter check
+        
+        # Check if letter is not a letter
         elif not letter_guessed.isalpha(): flask_socketio.emit("status_change", {"status": "<h4>The letter must be an alphabetical letter.</h4>"}, room = self.hangman.guesser_id)
 
         # Checks passed
@@ -325,21 +319,18 @@ def escape_html(text:str): return text.replace(">", "&gt;").replace("<", "&lt;")
 
 # Check username
 def check_username(username:str, namespace:str):
-
     # Get user database
     user_database = all_hangman_rooms.room_dicts[namespace]["user_database"]
-    print(f"CHECKING USERNAME USERNAME: {username} | NAMESPACE: {namespace} | USER DATABASE FOR THAT NAMESPACE: {user_database}")
 
     # Blank username
     if len(username) == 0: flask.flash("Invalid username: too short.")
     # Full game
     elif len(user_database) >= 2: flask.flash("This game is full. Sorry!")
     # Regex check
-    elif not username.isalnum(): flask.flash("Your username must be letters and numbers only.")    
+    elif not username.isidentifier(): flask.flash("Your username must only contain alphanumeric characters and underscores, and may not start with a number.")    
 
     # Send to hangman game with username
     else:
-        print("USERNAME PASSED MAIN CHECKS, CHECKING IF IN USER DATABASE")
         try:
             # Make sure username is not already in database
             for username_db in user_database:
@@ -394,7 +385,6 @@ def hangman_web_page():
         username = username, 
         ip_address = IP_ADDRESS, 
         port = PORT, 
-        default_wrong_char = DEFAULT_WRONG_CHAR, 
         room_name = room
     )
 
