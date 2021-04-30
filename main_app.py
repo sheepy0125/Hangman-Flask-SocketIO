@@ -383,8 +383,6 @@ def hangman_web_page():
     # Check username
     if not check_username(username = username, namespace = room): return flask.redirect("/")
 
-    return not_found_fun()
-
     # Didn't return means the username was good, send to the hangman page.
     return flask.render_template(
         "hangman.html",
@@ -396,8 +394,8 @@ def hangman_web_page():
 
 # Run
 if __name__ == "__main__":
-    # socket_io.run(main_app, host = "127.0.0.1", port = 5000, debug = True) # Local, debug
-    socket_io.run(main_app, host = "127.0.0.1", port = 5000, debug = False) # Local, no debug
+    socket_io.run(main_app, host = "127.0.0.1", port = 5000, debug = True) # Local, debug
+    # socket_io.run(main_app, host = "127.0.0.1", port = 5000, debug = False) # Local, no debug
     # socket_io.run(main_app, debug = False, host = "0.0.0.0", port = PORT) # Production
 
 else: print("You must run this by itself.")
