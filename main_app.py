@@ -7,6 +7,7 @@ import flask
 import flask_socketio
 import datetime
 import json
+import traceback
 
 # Setup constants
 with open ("config.json") as config_file:
@@ -17,6 +18,9 @@ with open ("config.json") as config_file:
     IP_ADDRESS = config_dict["ip_address"]
     PORT = config_dict["port"]
     DEFAULT_WRONG_CHAR = config_dict["default_wrong_char"]
+
+# Unimport JSON module as it is no longer required
+del json
 
 # Setup website
 main_app = flask.Flask(__name__, template_folder = "template")
@@ -354,12 +358,12 @@ def check_username(username:str, namespace:str):
 # 404 - Page not found
 @main_app.errorhandler(404)
 def page_not_found(error):
-    return flask.render_template("page_not_found.html"), 404
+    return flask.render_template("page_not_found.html", traceback = traceback.format_exc()), 404
 
 # 500 - Internal server error
 @main_app.errorhandler(500)
 def internal_server_error(error):
-    return flask.render_template("internal_server_error.html"), 500
+    return flask.render_template("internal_server_error.html", traceback = traceback.format_exc()), 500
 
 # Pages
 
@@ -379,6 +383,8 @@ def hangman_web_page():
     # Check username
     if not check_username(username = username, namespace = room): return flask.redirect("/")
 
+    return not_found_fun()
+
     # Didn't return means the username was good, send to the hangman page.
     return flask.render_template(
         "hangman.html",
@@ -390,8 +396,8 @@ def hangman_web_page():
 
 # Run
 if __name__ == "__main__":
-    socket_io.run(main_app, host = "127.0.0.1", port = 5000, debug = True) # Local, debug
-    # socket_io.run(main_app, host = "127.0.0.1", port = 5000, debug = False) # Local, no debug
+    # socket_io.run(main_app, host = "127.0.0.1", port = 5000, debug = True) # Local, debug
+    socket_io.run(main_app, host = "127.0.0.1", port = 5000, debug = False) # Local, no debug
     # socket_io.run(main_app, debug = False, host = "0.0.0.0", port = PORT) # Production
 
 else: print("You must run this by itself.")

@@ -1,0 +1,43 @@
+<!-- Base error handling -->
+
+<!-- Use base.html -->
+{% extends "base.html" %} 
+
+<!-- Head -->
+{% block head %}{% endblock %}
+
+<!-- Body -->
+{% block body %}
+<div class = "content">
+    <h1>{% block error_header %}{% endblock %}</h1>
+    <div class = "sub_content center">{% block error_text %}{% endblock %}</div> <br>
+    <div class = "sub_content center" id = "traceback">{% block traceback %}{% endblock %}</div>
+
+    <button type = "button" class = "button" id = "traceback_toggle"><span id = "open_or_close_traceback">Open traceback</span></button>
+    <form method = "GET" action = "/"><button type = "submit" class = "button">Back to main</button></form>
+    <br><hr>
+
+    <!-- JQuery JavaScript library -->
+    <script type = "text/javascript" src = "/static/js/j-query.js"></script>
+
+    <!-- Main JavaScript -->
+    <script>
+        $(document).ready(function() {
+            var traceback_shown = false;
+            $("#traceback").hide();
+            $("#traceback_toggle").click(function() { 
+                if (traceback_shown == true) { 
+                    $("#traceback").slideUp(1000); 
+                    $("#open_or_close_traceback").html("Open traceback");
+                }
+                else { 
+                    $("#traceback").slideDown(1000); 
+                    $("#open_or_close_traceback").html("Close traceback");
+                }
+                traceback_shown = !traceback_shown;
+            });
+        });
+    </script>
+
+
+{% endblock %}

@@ -1,21 +1,15 @@
 <!-- Internal server error (500) page -->
 
-<!-- Use base.html -->
-{% extends "base.html" %} 
+<!-- Use base_error_handling.html -->
+{% extends "base_error_handling.html" %} 
 
-<!-- Head -->
-{% block head %}{% endblock %}
+<!-- Title -->
+{% block title %}500: Internal server error{% endblock %}
 
-<!-- Body -->
-{% block body %}
-<div class = "content">
-    <div class = "sub_content">
-        <h1>Error code 500: Internal server error.</h1>
-        <h3>Something has gone wrong with the server (not supposed to happen lol).</h3>
-        <h3>Please contact Sheepy and explain what you were doing when this happened.</h3>
-    </div>
-
-    <form method = "GET" action = "/"><button type = "submit" class = "button">Back to main</button></form>
-    <br><hr>
-
+<!-- Error stuffs -->
+{% block error_header %}500 - Internal server error{% endblock %}
+{% block error_text %}
+    <h3>Something has gone wrong with the server (not supposed to happen lol).</h3>
+    <h3>Please contact Sheepy and explain what you were doing when this happened.</h3>
 {% endblock %}
+{% block traceback %}{{ traceback }}{% endblock %}
