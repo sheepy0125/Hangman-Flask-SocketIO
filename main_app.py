@@ -124,7 +124,7 @@ class Hangman:
         
             # Check if word guessed
             if self.game_word == censored_word: 
-                self.guesser_won(   )
+                self.guesser_won()
                 return
 
         # Letter wasn't in word
@@ -137,7 +137,6 @@ class Hangman:
                 self.executioner_won()
                 return
 
-        # Give back the censored word
         socket_io.emit(
             "letter_has_been_guessed", 
             {"letter_guessed": letter_guessed, "censored_word": self.censored_game_word, "guesses_left": self.guesses_left, "correct": correct}, 
@@ -147,9 +146,9 @@ class Hangman:
 
         log(text_to_log = f"A letter has been guessed! | Correct: {correct} | Data: {data} | {get_current_time()}")
 
-# All hangman rooms (important for keeping track of stuff)
+# All hangman rooms (shared between all hangman rooms)
 class AllHangmanRooms: room_dicts:dict = {}
-all_hangman_rooms = AllHangmanRooms()
+all_hangman_rooms = AllHangmanRooms() # Shared instance between all hangman rooms
 
 # Hangman room class
 class HangmanRoom(flask_socketio.Namespace):
@@ -178,7 +177,6 @@ class HangmanRoom(flask_socketio.Namespace):
 
         self.send_message(message = f"{data['username']} has joined the game! There are now {self.hangman.users_connected}/2 users in the game.")
 
-        # If there are more than two people, get the guesser and executioner.
         all_user_ids = list(self.hangman.user_database.keys())
         if len(all_user_ids) >= 2: self.hangman.start_game(executioner_id = all_user_ids[0], guesser_id = all_user_ids[1])
 
@@ -198,7 +196,6 @@ class HangmanRoom(flask_socketio.Namespace):
         # If there is a disconnect while the game has started, end the game.
         if self.hangman.started:
             socket_io.emit("end_game_disconnect", broadcast = True)
-            # Reset variables
             self.hangman.reset_variables()
 
         log(text_to_log = f"{user_id}: {username} left | Database: {self.hangman.user_database} | {get_current_time()}")
@@ -209,11 +206,9 @@ class HangmanRoom(flask_socketio.Namespace):
         # Username wasn't in database, so just exit
         except KeyError: return
 
-        # Call disconnection handler
         self.user_disconnection_handler(user_id = flask.request.sid, username = username)
 
     def on_client_disconnect(self): # Disconnect is reserved, so we call this when the client wants to disconnect.
-        # Call disconnection handler
         try: self.user_disconnection_handler(user_id = flask.request.sid, username = self.hangman.user_database[flask.request.sid])
         # Not in database, just pass
         except KeyError: pass
@@ -235,7 +230,7 @@ class HangmanRoom(flask_socketio.Namespace):
         log(text_to_log = f"{flask.request.sid}: {self.hangman.user_database[flask.request.sid]} sent message with data: \"{data}\" | {get_current_time()}")
 
     # Message handler
-    def message(self,   message:str):
+    def message(self, message:str):
         print(f"Message recieved at {datetime.datetime.utcnow()} (GMT): \"{message}\"")
         self.send_message(message = message)
 
@@ -245,7 +240,6 @@ class HangmanRoom(flask_socketio.Namespace):
 
     # Word for guesser
     def on_word_for_guesser(self, data:dict):
-        # Get word
         word = data["word"]
 
         # Check if word is empty
@@ -268,7 +262,6 @@ class HangmanRoom(flask_socketio.Namespace):
 
     # Guesser guessed a letter
     def on_guessed_letter(self, data:dict):
-        # Get letter
         letter_guessed = data["letter_guessed"]
 
         # Check if letter is empty
@@ -322,14 +315,13 @@ def escape_html(text:str): return text.replace(">", "&gt;").replace("<", "&lt;")
 
 # Check username
 def check_username(username:str, namespace:str):
-    # Get user database
     user_database = all_hangman_rooms.room_dicts[namespace]["user_database"]
 
-    # Blank username
+    # Check if username is blank
     if len(username) == 0: flask.flash("Invalid username: too short.")
-    # Full game
-    elif len(user_database) >= 2: flask.flash("This game is full. Sorry!")
-    # Regex check
+    # Check if room is full
+    elif len(user_database) >= 2: flask.flash("This room is full. Sorry!")
+    # Check if the username is a valid username
     elif not username.isidentifier(): flask.flash("Your username must only contain alphanumeric characters and underscores, and may not start with a number.")    
 
     # Send to hangman game with username
@@ -340,6 +332,7 @@ def check_username(username:str, namespace:str):
                 if username_db.lower() == username.lower():
                     flask.flash(f"Username \"{username_db}\" is already in use.")
                     break
+                
             else: return True
 
         # Either a GET request username not submitted
