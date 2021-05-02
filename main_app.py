@@ -14,7 +14,7 @@ with open ("config.json") as config_file:
     config_dict = json.load(config_file)
     SECRET_KEY = config_dict["secret_key"]
     LOG_LOCATION = config_dict["log_location"]
-    UTC_TIMEZONE_OFFSET = config_dict["utc-timezone-offset"]
+    UTC_TIMEZONE_OFFSET = config_dict["utc_timezone_offset"]
     IP_ADDRESS = config_dict["ip_address"]
     PORT = config_dict["port"]
     DEFAULT_WRONG_CHAR = config_dict["default_wrong_char"]
@@ -35,8 +35,9 @@ socket_io = flask_socketio.SocketIO(main_app)
 # Hangman class
 class Hangman:
     # Initialize
-    def __init__(self):
+    def __init__(self, namespace:str): 
         self.setup_variables()
+        self.namespace = namespace
 
     # Set up variables
     def setup_variables(self):
@@ -61,41 +62,41 @@ class Hangman:
         self.game_word = ""
 
     # Update points
-    def update_points(self, namespace:str): socket_io.emit("points_update", data = self.user_points_database, namespace = namespace)
+    def update_points(self): socket_io.emit("points_update", data = self.user_points_database, broadcast = True, namespace = self.namespace)
 
     # Guesser won game
-    def guesser_won(self, namespace:str):
-        socket_io.emit("game_over_guesser_won", data = {"word": self.game_word}, broadcast = True, namespace = namespace)
+    def guesser_won(self):
+        socket_io.emit("game_over_guesser_won", data = {"word": self.game_word}, broadcast = True, namespace = self.namespace)
         self.user_points_database[self.user_database[self.guesser_id]] += 1
-        self.update_points(namespace = namespace)
+        self.update_points()
 
         log(text_to_log = f"The guesser won! | {get_current_time()}")
     
     # Executioner won game
-    def executioner_won(self, namespace:str): 
-        socket_io.emit("game_over_out_of_guesses", data = {"word": self.game_word}, broadcast = True, namespace = namespace)
+    def executioner_won(self): 
+        socket_io.emit("game_over_out_of_guesses", data = {"word": self.game_word}, broadcast = True, namespace = self.namespace)
         self.user_points_database[self.user_database[self.executioner_id]] += 1
-        self.update_points(namespace = namespace)    
+        self.update_points()    
 
         log(text_to_log = f"The guesser ran out of guesses! | {get_current_time()}")
 
     # Start game
-    def start_game(self, executioner_id:str, guesser_id:str, namespace:str):
-        self.update_points(namespace = namespace)
+    def start_game(self, executioner_id:str, guesser_id:str):
+        self.update_points()
         self.reset_variables()
 
         self.started = True
         self.executioner_id = executioner_id
         self.guesser_id = guesser_id
 
-        flask_socketio.emit("recieve_role", {"role": "executioner"}, room = self.executioner_id)
-        flask_socketio.emit("recieve_role", {"role": "guesser"}, room = self.guesser_id)
-        flask_socketio.send(f"Game is starting! The guesser is {self.user_database[guesser_id]} and the executioner is {self.user_database[self.executioner_id]}", namespace = namespace)
+        flask_socketio.emit("recieve_role", {"role": "executioner"}, room = self.executioner_id, namespace = self.namespace)
+        flask_socketio.emit("recieve_role", {"role": "guesser"}, room = self.guesser_id, namespace = self.namespace)
+        flask_socketio.send(f"Game is starting! The guesser is {self.user_database[guesser_id]} and the executioner is {self.user_database[self.executioner_id]}", namespace = self.namespace)
 
         log(text_to_log = f"Starting! | Database: {self.user_database} | {get_current_time()}")
 
     # Guessed letter
-    def guessed_letter(self, data:dict, namespace:str):
+    def guessed_letter(self, data:dict):
         letter_guessed = data["letter_guessed"]
 
         # Check if it has already been guessed
@@ -123,7 +124,7 @@ class Hangman:
         
             # Check if word guessed
             if self.game_word == censored_word: 
-                self.guesser_won(namespace = namespace)
+                self.guesser_won(   )
                 return
 
         # Letter wasn't in word
@@ -133,7 +134,7 @@ class Hangman:
 
             # Check if game over
             if self.guesses_left <= 0:
-                self.executioner_won(namespace = namespace)
+                self.executioner_won()
                 return
 
         # Give back the censored word
@@ -141,7 +142,7 @@ class Hangman:
             "letter_has_been_guessed", 
             {"letter_guessed": letter_guessed, "censored_word": self.censored_game_word, "guesses_left": self.guesses_left, "correct": correct}, 
             broadcast = True,
-            namespace = namespace
+            namespace = self.namespace
         )
 
         log(text_to_log = f"A letter has been guessed! | Correct: {correct} | Data: {data} | {get_current_time()}")
@@ -154,7 +155,7 @@ all_hangman_rooms = AllHangmanRooms()
 class HangmanRoom(flask_socketio.Namespace):
     # Initialize
     def __init__(self, namespace:str, all_hangman_rooms:object): 
-        self.hangman = Hangman()
+        self.hangman = Hangman(namespace = namespace)
         self.namespace = namespace
         self.all_hangman_rooms = all_hangman_rooms
         self.all_hangman_rooms.room_dicts[(self.namespace.lstrip("/"))] = {"user_database": set()} # Setup entry in all hangman rooms
@@ -172,14 +173,14 @@ class HangmanRoom(flask_socketio.Namespace):
         self.hangman.user_database[flask.request.sid] = data["username"]
         self.hangman.users_connected = len(self.hangman.user_database)
         self.hangman.user_points_database[data["username"]] = 0
-        self.hangman.update_points(namespace  = self.namespace)
+        self.hangman.update_points()
         self.all_hangman_rooms.room_dicts[(self.namespace.lstrip("/"))]["user_database"].add(data["username"])
 
         self.send_message(message = f"{data['username']} has joined the game! There are now {self.hangman.users_connected}/2 users in the game.")
 
         # If there are more than two people, get the guesser and executioner.
         all_user_ids = list(self.hangman.user_database.keys())
-        if len(all_user_ids) >= 2: self.hangman.start_game(executioner_id = all_user_ids[0], guesser_id = all_user_ids[1], namespace = self.namespace)
+        if len(all_user_ids) >= 2: self.hangman.start_game(executioner_id = all_user_ids[0], guesser_id = all_user_ids[1])
 
         log(text_to_log = f"{flask.request.sid}: {data['username']} joined | Database: {self.hangman.user_database} | {get_current_time()}")
 
@@ -189,7 +190,7 @@ class HangmanRoom(flask_socketio.Namespace):
         del self.hangman.user_database[user_id]
         self.hangman.users_connected = len(self.hangman.user_database)
         del self.hangman.user_points_database[username]
-        self.hangman.update_points(namespace  = self.namespace)
+        self.hangman.update_points()
         self.all_hangman_rooms.room_dicts[(self.namespace.lstrip("/"))]["user_database"].remove(username)
 
         self.send_message(message = f"{username} has left the game! There are now {self.hangman.users_connected}/2 users in this game.")
@@ -280,7 +281,7 @@ class HangmanRoom(flask_socketio.Namespace):
         elif not letter_guessed.isalpha(): flask_socketio.emit("status_change", {"status": "<h4>The letter must be an alphabetical letter.</h4>"}, room = self.hangman.guesser_id)
 
         # Checks passed
-        else: self.hangman.guessed_letter(data = data, namespace = self.namespace)
+        else: self.hangman.guessed_letter(data = data)
 
     # Ready up
     def on_ready_up(self):
@@ -293,7 +294,7 @@ class HangmanRoom(flask_socketio.Namespace):
         # Check if both players have readied up
         if len(self.hangman.users_readied_up) >= 2:
             # Start game with switched roles
-            self.hangman.start_game(executioner_id = self.hangman.guesser_id, guesser_id = self.hangman.executioner_id, namespace = self.namespace)
+            self.hangman.start_game(executioner_id = self.hangman.guesser_id, guesser_id = self.hangman.executioner_id)
 
         # Hasn't started game yet, so update the button
         else: flask_socketio.emit("user_readied_up", broadcast = True)

@@ -1,7 +1,7 @@
 {
     "secret_key": "admin1",
     "log_location": "log.txt",
-    "utc-timezone-offset": -4,
+    "utc_timezone_offset": -4,
     "ip_address": "127.0.0.1",
     "port": 5000,
     "default_wrong_char": "-",
