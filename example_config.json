@@ -4,5 +4,6 @@
     "utc-timezone-offset": -4,
     "ip_address": "127.0.0.1",
     "port": 5000,
-    "default_wrong_char": "-"
+    "default_wrong_char": "-",
+    "rooms": ["Alpha", "Beta", "Charlie"]
 }

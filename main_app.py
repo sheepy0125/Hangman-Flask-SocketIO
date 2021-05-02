@@ -18,6 +18,7 @@ with open ("config.json") as config_file:
     IP_ADDRESS = config_dict["ip_address"]
     PORT = config_dict["port"]
     DEFAULT_WRONG_CHAR = config_dict["default_wrong_char"]
+    ROOMS = config_dict["rooms"]
 
 # Unimport JSON module as it is no longer required
 del json
@@ -300,10 +301,7 @@ class HangmanRoom(flask_socketio.Namespace):
         log(text_to_log = f"User {self.hangman.user_database[flask.request.sid]} has readied up! | {get_current_time()}")
 
 # Setup rooms
-ROOMS = ["Alpha", "Beta", "Charlie"]
-socket_io.on_namespace(HangmanRoom("/Alpha", all_hangman_rooms = all_hangman_rooms))
-socket_io.on_namespace(HangmanRoom("/Beta", all_hangman_rooms = all_hangman_rooms))
-socket_io.on_namespace(HangmanRoom("/Charlie", all_hangman_rooms = all_hangman_rooms))
+for room in ROOMS: socket_io.on_namespace(HangmanRoom(f"/{room}", all_hangman_rooms = all_hangman_rooms))
 
 # =================================================================================================
 # Misc. functions =================================================================================
